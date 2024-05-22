@@ -1,0 +1,1711 @@
+---
+title: "mito_final_analysis"
+output:
+  html_document:
+    df_print: paged
+---
+
+
+# Set up
+```{r message=FALSE, warning=FALSE, paged.print=FALSE}
+source("functions.R")
+```
+###### Load, Clean, Format Population Average Data
+Generating Gene information for population average dataframes:
+```{r}
+#Positive Strand Set Up
+positive_coordinates = read.csv("../data/MitoCoord_Pos.csv")
+positive_coordinate_table = tibble(Position = c(),
+                                   Type = c(),
+                                   Gene = c())
+for (i in 1:length(positive_coordinates$Gene)) {
+  temp_tib  = tibble(Position = c(),
+                     Type = c(),
+                     Gene = c())
+  Position = positive_coordinates$Start[i]:positive_coordinates$End[i]
+  Type = rep(positive_coordinates$Type[i],length(Position))
+  Gene = rep(positive_coordinates$Gene[i],length(Position))
+  temp_tib = tibble(Position = Position,
+                    Type = Type,
+                    Gene = Gene)
+  positive_coordinate_table = positive_coordinate_table %>% bind_rows(temp_tib)
+}
+rm(positive_coordinates)
+rm(temp_tib)
+
+#Negative Strand 
+negative_coordinates = read.csv("../data/MitoCoord_Neg.csv")
+negative_coordinate_table = tibble(Position = c(),
+                                   Type = c(),
+                                   Gene = c())
+for (i in 1:length(negative_coordinates$Gene)) {
+  temp_tib  = tibble(Position = c(),
+                     Type = c(),
+                     Gene = c())
+  
+  Position = negative_coordinates$Start[i]:negative_coordinates$End[i]
+  
+  Type = rep(negative_coordinates$Type[i],length(Position))
+  Gene = rep(negative_coordinates$Gene[i],length(Position))
+  
+  temp_tib = tibble(Position = Position,
+                    Type = Type,
+                    Gene = Gene)
+  
+  negative_coordinate_table = negative_coordinate_table %>% bind_rows(temp_tib)
+}
+head(positive_coordinate_table)
+negative_coordinate_table
+```
+WT and KO population from each biological replicate will be loaded as a list of dfs. We'll generate two seperate lists, one for positive strand data and the other for negative strand.
+```{r message=FALSE, warning=FALSE}
+## Positive Strand Whole Genome
+
+pos_avg.list = list()
+#####WT#####
+
+##WT1 Positive##
+wt1_pos = read.popavg("../data/Reactivities/Whole_Genome/WT/1p/WT1_popavg_reacts_HeavyStrand.txt")
+#Add gene labels
+wt1_pos = left_join(wt1_pos, positive_coordinate_table)
+#Add to list
+pos_avg.list[["WT1"]] = wt1_pos
+##WT2 positive##
+wt2_pos = read.popavg("../data/Reactivities/Whole_Genome/WT/1p/WT2_popavg_reacts_HeavyStrand.txt")
+#Add gene labels
+wt2_pos = left_join(wt2_pos, positive_coordinate_table)
+#Add to list
+pos_avg.list[["WT2"]] = wt2_pos
+
+#####KO#####
+
+##KO1 Positive##
+ko1_pos = read.popavg("../data/Reactivities/Whole_Genome/KO/1p/KO1_popavg_reacts_HeavyStrand.txt")
+#Add gene labels
+ko1_pos = left_join(ko1_pos, positive_coordinate_table)
+pos_avg.list[["KO1"]] = ko1_pos
+##KO2 Positive##
+ko2_pos = read.popavg("../data/Reactivities/Whole_Genome/KO/1p/KO2_popavg_reacts_HeavyStrand.txt")
+#Add gene labels
+ko2_pos = left_join(ko2_pos, positive_coordinate_table)
+#Add to list
+pos_avg.list[["KO2"]] = ko2_pos
+#Threshold
+#Here we remove an bases with a reactivity > 0.3 
+pos_avg.list = set_outliers_na(pos_avg.list, 0.3)
+#remove intermediate dfs for memory sake:
+rm(wt1_pos, wt2_pos, ko1_pos, ko2_pos)
+
+###Negative Strand Whole Genome###
+neg_avg.list = list()
+
+#####WT#####
+##WT1 Negative##
+wt1_neg = read.popavg("../data/Reactivities/Whole_Genome/WT/1p/WT1_popavg_reacts_LightStrand.txt")
+#Add gene labels
+wt1_neg = left_join(wt1_neg, negative_coordinate_table)
+#Add to list
+neg_avg.list[["WT1"]] = wt1_neg
+##WT2 Negative##
+wt2_neg = read.popavg("../data/Reactivities/Whole_Genome/WT/1p/WT2_popavg_reacts_LightStrand.txt")
+#Add gene labels
+wt2_neg = left_join(wt2_neg, negative_coordinate_table)
+#Add to list
+neg_avg.list[["WT2"]] = wt2_neg
+
+#####KO#####
+##KO1 Negative##
+ko1_neg = read.popavg("../data/Reactivities/Whole_Genome/KO/1p/KO1_popavg_reacts_LightStrand.txt")
+#Add gene labels
+ko1_neg = left_join(ko1_neg, negative_coordinate_table)
+#Add to list
+neg_avg.list[["KO1"]] = ko1_neg
+##KO2 Negative##
+ko2_neg = read.popavg("../data/Reactivities/Whole_Genome/KO/1p/KO2_popavg_reacts_LightStrand.txt")
+#Add gene labels
+ko2_neg = left_join(ko2_neg, negative_coordinate_table)
+#Add to list
+neg_avg.list[["KO2"]] = ko2_neg
+#Threshold:
+neg_avg.list = set_outliers_na(neg_avg.list, 0.3)
+
+rm(ko1_neg, ko2_neg, wt1_neg, wt2_neg)
+
+```
+Done with data loading, I've broken down the code by figure. Those not represented were either visualized in VARNA or were the direct output of the DREEM pipeline. Additionally, CSV files were mostly used for visualization in prism, however I have included some rough code which plots the results in a less aesthetically pleasing format. 
+
+## Figure 1
+a
+
+#### B)
+Positive strand read depth
+```{r message=FALSE, warning=FALSE}
+Cov = read.csv("../data/Coverage/WT_positive_coverage_BV.csv")
+colnames(Cov) = c("Position","Coverage")
+Cov_Circos = Convert_Circos_Coords(Cov)
+##NEG###
+Cov_Neg = read.csv("../data/Coverage/WT_negative_coverage_BV.csv")
+colnames(Cov_Neg) = c("Position","Coverage")
+Cov_Neg_Circos = Convert_Neg_Coords(Cov_Neg)
+Cov_Neg_Circos = Convert_Circos_Coords(Cov_Neg_Circos)
+
+circos.clear()
+Init_Circos_Mito()
+circos.par("track.height" = 0.4) 
+
+max_positive_coverage = max(Cov_Circos$Coverage)
+max_positive_coverage = max_positive_coverage[1]
+
+max_negative_coverage = max(Cov_Neg_Circos$Coverage)
+max_negative_coverage = max_negative_coverage[1]
+
+gap = 200000
+circos.track(ylim = c((-max_negative_coverage - gap),(max_positive_coverage+gap)))
+circos.yaxis(
+  side = c("left"),
+  labels.niceFacing = TRUE,
+  labels.cex = 0.5,
+  at = c(-200000,-700000,-1200000,-1700000,
+         200000,700000,1200000,1700000
+  )
+)
+threshold = 100000
+for (i in 1:length(Cov_Circos$Position)) {
+  ###Positive Strand
+  if(Cov_Circos$Coverage[i] > threshold){
+    circos.rect(xleft = Cov_Circos$Position[i] ,xright = (Cov_Circos$Position[i] + 1),
+                ybottom = gap, ytop =Cov_Circos$Coverage[i]+gap,col = "#8E28A4", border ="#8E28A4")
+  }else{
+    circos.rect(xleft = Cov_Circos$Position[i] ,xright = (Cov_Circos$Position[i] + 1),
+                ybottom = gap, ytop =Cov_Circos$Coverage[i]+gap,col = "#C0D5F9", border ="#C0D5F9")
+  }
+  if(Cov_Neg_Circos$Coverage[i] > threshold){
+    circos.rect(xleft = Cov_Neg_Circos$Position[i] ,xright = (Cov_Neg_Circos$Position[i] + 1),
+                ybottom = (Cov_Neg_Circos$Coverage[i]*-1 - gap), ytop = - gap,col = "#8E28A4", border ="#8E28A4")
+  }else{
+    circos.rect(xleft = Cov_Neg_Circos$Position[i] ,xright = (Cov_Neg_Circos$Position[i] + 1),
+                ybottom = (Cov_Neg_Circos$Coverage[i]*-1 - gap), ytop = -gap ,col = "#C0D5F9", border ="#C0D5F9")
+  }
+}
+
+```
+
+
+#### C)
+Positive strand signal to noise
+```{r message=FALSE, warning=FALSE}
+pal <- wes_palette("GrandBudapest2", 4, type = "discrete")
+circos.csv = read.csv("../data/Circos_Table.csv") 
+mito_length = "16568"
+ticks = seq(0,17001,1000)
+df = data.frame(start = 0, end = 16568)
+rownames(df) = c("Mitochondria")
+
+###Positive Strand
+#Get Signal to Noise Sliding Windows:
+WT1_Pos_AC = DMS_React_Mean_Sliding(pos_avg.list$WT1,AC = T,GU = F,window_size = 80)
+WT1_Pos_GU = DMS_React_Mean_Sliding(pos_avg.list$WT1,AC = F,GU = T,window_size = 80)
+
+#Convert Coordinates
+WT1_Pos_AC = Convert_Circos_Coords(WT1_Pos_AC)
+WT1_Pos_GU = Convert_Circos_Coords(WT1_Pos_GU)
+
+#Plot Circos
+#svg("../plots/arc_plots/Circos_Plots/WT_Signal_Noise_Positive.svg")
+Init_Circos_Mito() 
+
+circos.par("track.height" = 0.4) 
+circos.track(ylim = c(0,0.06))
+circos.yaxis(
+  side = c("left"),
+  labels.niceFacing = TRUE,
+  labels.cex = 0.5
+)
+#Plot Lines
+circos.lines(x = 1:length(WT1_Pos_AC$Position), y = WT1_Pos_AC$DMS_Mean, lwd = 2, col = "#8E28A4")
+circos.lines(x = 1:length(WT1_Pos_GU$Position), y = WT1_Pos_GU$DMS_Mean, lwd = 2, col = "#C0D5F9")
+#dev.off()
+
+```
+
+
+
+#### D)
+
+Correlation of DMS reactivity on As and Cs of WT COX1,
+```{r}
+WT_COX1 = make_message_table(pos_avg.list = pos_avg.list,"WT","COX1")
+plot(WT_COX1$WT1,WT_COX1$WT2)
+```
+#### E)
+AUROC on DMS reactivities of 12S rRNA benchmarked against Cryo-EM defined secondary structure map:
+```{r}
+#WT1
+rRNA_CT = Read.CT("../data/AUROC/12s_rRNA.ct")
+
+wt1_rRNA_df = pos_avg.list$WT1 %>%
+  filter(Gene == "RNR1")
+#Make sure bases align with CT
+wt1_rRNA_df = wt1_rRNA_df[2:length(wt1_rRNA_df$Mismatches),]
+#Build the df for input into the auc_roc function
+auroc_df_wt1 = Build_ROC_df(CT_df = rRNA_CT, Pop_Avg_df = wt1_rRNA_df,F)
+auroc_df_wt1 = na.omit(auroc_df_wt1)
+pred <- prediction(auroc_df_wt1$Mu,auroc_df_wt1$Paired)
+perf <- performance(pred, "tpr", "fpr")
+# performance metrics TPR: True Positive Ratio FPR: False Positive Ratio
+plot(perf, col = "purple")
+#Calculate area under the curve:
+auc_roc(auroc_df_wt1$Mu, auroc_df_wt1$Paired)
+#Save CSV
+WT1_RNR1_AUROC = tibble(FPR = perf@x.values[[1]],
+                        TPR = perf@y.values[[1]])
+write.csv(WT1_RNR1_AUROC,"../csv_out/auroc/WT1_AUROC_df.csv")
+#WT2#
+wt2_rRNA_df = pos_avg.list$WT2 %>%
+  filter(Gene == "RNR1")
+wt2_rRNA_df = wt2_rRNA_df[2:length(wt2_rRNA_df$Mismatches...Deletions),]
+auroc_df_wt2 = Build_ROC_df(CT_df = rRNA_CT, Pop_Avg_df = wt2_rRNA_df,F)
+auroc_df_wt2 = na.omit(auroc_df_wt2)
+auc_roc(auroc_df_wt2$Mu, auroc_df_wt2$Paired)
+pred <- prediction(auroc_df_wt2$Mu,auroc_df_wt2$Paired)
+perf <- performance(pred, "tpr", "fpr")
+# performance metrics TPR: True Positive Ratio FPR: False Positive Ratio
+plot(perf, col = "purple")
+
+```
+
+
+## Figure 2
+#### A
+```{r message=FALSE, warning=FALSE}
+########WT###########
+###POSITIVE STRAND
+wt1_gini_pos = Gini_Slide(pos_avg.list$WT1,80,fill = T, na.rm = T )
+wt1_gini_pos = Convert_Circos_Coords(wt1_gini_pos)
+
+#Plot Circos
+#svg("../plots/circos/wt_gini_positive.svg")
+Init_Circos_Mito()
+circos.par("track.height" = 0.5)
+circos.track(ylim = c(0.05,0.8))
+circos.yaxis(at = c(0.2,0.4,0.6,0.8))
+circos.lines(x = wt1_gini_pos$Position, y = wt1_gini_pos$Gini, lwd = 2, col = "purple")
+dev.off()
+
+# ###NEGATIVE STRAND
+WT1_Gini_Neg = Gini_Slide(neg_avg.list$WT1,80,fill = T, na.rm = T )
+WT1_Gini_Neg = Convert_Neg_Coords(WT1_Gini_Neg)
+WT1_Gini_Neg = Convert_Circos_Coords(WT1_Gini_Neg)
+
+#Plot Circos
+#svg("../plots/arc_plots/Circos_Plots/wt_gini_negative.svg")
+Init_Circos_Mito()
+circos.par("track.height" = 0.5)
+circos.track(ylim = c(0.05,0.8))
+circos.yaxis(at = c(0.2,0.4,0.6,0.8))
+circos.lines(x = WT1_Gini_Neg$Position, y = WT1_Gini_Neg$Gini, lwd = 2, col = "purple")
+#dev.off()
+
+```
+
+#### C
+Purpose here is to read in all CT files for each message and count the number of basepairs and divide by the number of total bases
+```{r}
+# Function to count base pairs in a CT file
+count_basepairs <- function(file) {
+  CT = Read.CT(file)
+  count = sum(CT$paired != 0, na.rm = T)
+  ratio = count/length(CT$paired)
+  length = length(CT$paired)
+  return(c(count,ratio,length))
+}
+# Function to parse filename
+parse_filename <- function(filename) {
+  # Remove directory and extension
+  name <- basename(filename)
+  name <- str_remove(name, ".ct")
+  
+  # Split on underscores
+  parts <- str_split(name, "_")[[1]]
+  
+  # Extract parts
+  condition <- parts[1]
+  orientation <- parts[2]
+  message <- parts[3]
+  sequence_range <- parts[4]
+  
+  return(c(condition, orientation, message, sequence_range))
+}
+#####WT######
+# Get the list of CT files for each condition
+WT_files <- list.files(path = "../data/Structure/WT/Message_Structure/", pattern = "*.ct", full.names = TRUE)
+# Count base pairs and parse filenames for each file
+WT_DF <- data.frame()
+for(file in WT_files) {
+  num_bp <- count_basepairs(file)
+  parsed_name <- parse_filename(file)
+  row <- c(Condition = parsed_name[1], Message = parsed_name[3], BasePairs = num_bp[1], Ratio =  num_bp[2], Length = num_bp[3])
+  WT_DF <- rbind(WT_DF, row)
+}
+WT_DF
+colnames(WT_DF) = c("Treatment","Message","BP_Count","Ratio","Length")
+WT_DF$BP_Count = as.numeric(WT_DF$BP_Count)
+WT_DF$Ratio = as.numeric(WT_DF$Ratio)
+WT_DF$Length = as.numeric(WT_DF$Length)
+ggplot(data = WT_DF, aes(x = Length, y = Ratio, label = Message)) +
+  geom_point() + 
+  geom_text_repel() +  # Use geom_text_repel for labels
+  ylim(0, 0.3) +       # Set y-axis limits
+  theme_minimal()
+write.csv("../csv_out/structure/wt_bp_ratio_by_length.csv")
+```
+## Figure 3
+#### B
+Here we are preparing mitoribosome coverage in order to be overlayed onto the structure of the ATP68 structure model. 
+```{r}
+ribosome_profilling = read.csv("../data/Mitoribosome_Profiling/mito_genome_rp.csv")
+#filter only atp68
+atp68_ribosome_profiling = ribosome_profilling %>%
+  filter(Position > 8363) %>%
+  filter(Position < 9206)
+plot(atp68_ribosome_profiling$Position,atp68_ribosome_profiling$Density)
+
+#Normalize to a 0-1 scale by dividing by maximum value:
+max = max(atp68_ribosome_profiling$Density, na.rm = T)
+atp68_ribosome_profiling$NormDensity = atp68_ribosome_profiling$Density / max
+#Move to CSV
+atp68_ribosome_profiling = tibble(Position = atp68_ribosome_profiling$Position,
+                                  Density = atp68_ribosome_profiling$NormDensity)
+plot(atp68_ribosome_profiling$Position,atp68_ribosome_profiling$Density)
+write.csv(atp68_ribosome_profiling,"../csv_out/ribosome_profiling/atp68_normalized_rp.csv")
+```
+## Figure 4
+#### A
+Normalizing reactivities for COX1 structural model:
+```{r}
+wt_cox1 = read.popavg("../data/Reactivities//Message/WT/1p/WT_positive_COX1_UTR_1_1618_popavg_reacts.txt")
+wt_cox1_normalized = Normalize_Reactivities(df = wt_cox1, threshold = 0.1)
+wt_cox1_normalized = tibble(Position = wt_cox1_normalized$Position,
+                            Base = wt_cox1_normalized$Base,
+                            Normalized_Reactivity = wt_cox1_normalized$NormalizedReactivity)
+wt_cox1_normalized
+```
+
+#### B
+```{r}
+#Gini index sliding window 
+ribosome_profilling = read.csv("../data/Mitoribosome_Profiling/mito_genome_rp.csv")
+```
+COX1 starts at 5900, but there is a strong peak at the site of initation which obscures trends within the message as show here:
+```{r}
+cox1_ribosome_profiling_whole = ribosome_profilling %>%
+  filter(Position > 5900) %>%
+  filter(Position < 7444)
+cox1_ribosome_profiling_whole = na.locf(na.locf(cox1_ribosome_profiling_whole), fromLast = FALSE)
+
+plot(cox1_ribosome_profiling_whole$Position,cox1_ribosome_profiling_whole$Density)
+```
+We will, instead only look at mitoribosome density within the message itself and omit the peak coresponding to translation initation:
+```{r message=FALSE, warning=FALSE}
+cox1_ribosome_profiling_no_aug = ribosome_profilling %>%
+  filter(Position > 5940) %>%
+  filter(Position < 7444)
+cox1_ribosome_profiling_no_aug = na.locf(na.locf(cox1_ribosome_profiling_no_aug), fromLast = FALSE)
+
+plot(cox1_ribosome_profiling_no_aug$Position,cox1_ribosome_profiling_no_aug$Density)
+#Adding NAs over the omitted position
+cox1_message_table = tibble(Position =5941:7444)
+cox1_message_table = cox1_message_table %>%
+  left_join(cox1_ribosome_profiling_no_aug)
+cox1_message_table = na.locf(na.locf(cox1_message_table), fromLast = FALSE)
+COX1_F = tibble(Position = 5901:7444)
+cox1_message_table = COX1_F%>%
+  left_join(cox1_message_table)
+#Normalizing to max value
+max = max(cox1_message_table$Density, na.rm = T)
+cox1_message_table$NormDensity = cox1_message_table$Density / max
+plot(cox1_message_table$NormDensity)
+cox1_message_table = cox1_message_table[order(cox1_message_table$Position),]
+write.csv(cox1_message_table,"../csv_out/ribosome_profiling/cox1_rp_normalized_filtered_40nt.csv")
+###COX1_Gini:
+WT1_COX1 = pos_avg.list$WT1 %>%
+  filter(Position > 5900) %>%
+  filter(Position < 7445)
+
+Gini_COX1 = Gini_Slide(WT1_COX1,30,T,na.rm = T)
+plot(Gini_COX1$Gini)
+#write.csv(Gini_COX1,"../Data/Coverage/Gini_COX1.csv")
+Gini_Ribo = tibble(Position = Gini_COX1$Position,
+                   Ribo = cox1_message_table$NormDensity,
+                   Gini = Gini_COX1$Gini)
+#write.csv(Gini_Ribo,"../Data/Coverage/Gini_COX1.csv")
+
+p = ggplot(Gini_Ribo,aes(x = Position, y = Ribo))+
+  geom_line()+
+  geom_line(aes(x = Position, y = Gini, color = "Gini Index"))+  
+  scale_color_manual(values = c("orange2", "gray30"))
+
+p
+
+```
+
+## Figure 5
+#### A
+```{r message=FALSE, warning=FALSE}
+WT_Corr_Slide = Corr_Slide_R(df1 = pos_avg.list$WT1, df2 = pos_avg.list$WT2, window_size = 80)
+WT_Corr_Slide = Convert_Circos_Coords(WT_Corr_Slide)
+
+#Corr between KOs
+KO_Corr_Slide = Corr_Slide_R(df1 = pos_avg.list$KO1, df2 = pos_avg.list$KO2, window_size = 80)
+KO_Corr_Slide = Convert_Circos_Coords(KO_Corr_Slide)
+
+#Corr between WT1 and KO1
+WT_v_KO_Corr_Slide = Corr_Slide_R(df1 = pos_avg.list$WT1, df2 = pos_avg.list$KO1, window_size = 80)
+WT_v_KO_Corr_Slide = Convert_Circos_Coords(WT_v_KO_Corr_Slide)
+
+#Plotting
+#svg("../plots/circos/wt_ko_correlation.svg")
+Init_Circos_Mito()
+circos.par("track.height" = 0.7)
+circos.track(ylim = c(0,1))
+circos.yaxis(at = c(0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9))
+circos.lines(x = WT_Corr_Slide$Position,y = WT_Corr_Slide$Corr, lwd = 2, col = "blue")
+circos.lines(x = KO_Corr_Slide$Position,y = KO_Corr_Slide$Corr, lwd = 2, col = "red")
+circos.lines(x = WT_v_KO_Corr_Slide$Position,y = WT_v_KO_Corr_Slide$Corr, lwd = 2, col = "green")
+#dev.off()
+```
+#### B
+```{r message=FALSE, warning=FALSE}
+##########LRPPRC CLIP and WT vs KO Plot###############
+#svg("../plots/circos/lrpprc_clip_wt_ko_corr.svg")
+#Load LRPPRC CLIP data
+CLIP_Depth = read.table("../data/CLIP/GSM2692141_HeLa.fwd.chrM_coverage.bedGraph")
+colnames(CLIP_Depth) = c("Genome","Position","Pos1","Depth")
+#Convert to CIRCOS coordinates
+CLIP_Depth = Convert_Circos_Coords(CLIP_Depth)
+#Remove rRNA
+CLIP_Depth_norRNA = CLIP_Depth %>% 
+  mutate(DepthWinz = replace(Depth, Depth > 5000, 5000))
+#Set max to 4000
+CLIP_Depth_Winz = CLIP_Depth %>% 
+  mutate(DepthWinz = replace(Depth, Depth > 5000, 5000))
+#Generate Correlation Data
+WT_v_KO_Corr_Slide = Corr_Slide(df1 = pos_avg.list$WT1, df2 = pos_avg.list$KO1, window_size = 80)
+Corr_Circ = Convert_Circos_Coords(WT_v_KO_Corr_Slide)
+##Set up color values for correlation:
+Corr_Pal = colorRamp2(c(0.4, 0.7, 1), c("yellow", "orange", "red"))
+#Corr_Pal = yellowRedPalette(50)
+breaks = seq(0, 1, length.out = 30)
+#Plotting Depth
+Init_Circos_Mito()
+circos.par("track.height" = 0.5)
+circos.track(ylim = c(-5500,5500))
+for(i in 1:length(CLIP_Depth$Position)){
+  circos.rect(xleft = CLIP_Depth_norRNA$Position[i] ,xright = (CLIP_Depth_norRNA$Position[i] + 1),
+              ybottom = 0, ytop = CLIP_Depth_Winz$DepthWinz[i])
+}
+for (i in 1:length(Corr_Circ$Position)) {
+  circos.rect(xleft = Corr_Circ$Position[i] ,xright = (Corr_Circ$Position[i] + 1),
+              ybottom = -5000, ytop =-100, col = Corr_Pal(Corr_Circ$Corr[i]), 
+              border = Corr_Pal(Corr_Circ$Corr[i]))
+}
+#dev.off()
+
+```
+#### C
+```{r}
+#COX1
+#svg(filename = "../plots/arc_plots/WTKO_COX1_ARC.svg")
+Make_Double_Arc("../data/Structure/WT/Message_Structure/WT2_positive_COX1_1_1545_155.ct","../data/Structure/KO/Message_Structure/KO2_positive_COX1_1_1545_155.ct")
+#dev.off()
+#COX2
+#svg(filename = "../plots/arc_plots/WTKO_COX1_ARC.svg")
+Make_Double_Arc("../data/Structure/WT/Message_Structure/WT2_positive_COX2_1_683_68.ct","../data/Structure/KO/Message_Structure/KO2_positive_COX2_7585_8268_68.ct")
+#dev.off()
+#COX3
+#svg(filename = "../plots/arc_plots/WTKO_COX3_ARC.svg")
+Make_Double_Arc("../data/Structure/WT/Message_Structure/WT2_positive_COX3_1_786_79.ct","../data/Structure/KO/Message_Structure/KO2_positive_COX3_1_786_79.ct")
+#dev.off()
+#ND1
+#svg(filename = "../plots/arc_plots/WTKO_ND1_ARC.svg")
+Make_Double_Arc("../data/Structure/WT/Message_Structure/WT2_positive_ND1_1_959_96.ct","../data/Structure/KO/Message_Structure/KO2_positive_ND1_1_959_96.ct")
+#dev.off()
+#ND2
+#svg(filename = "../plots/arc_plots/WTKO_ND2_ARC.svg")
+Make_Double_Arc("../data/Structure/WT/Message_Structure/WT2_positive_ND2_1_1044_104.ct","../data/Structure/KO/Message_Structure/KO2_positive_ND2_1_1044_104.ct")
+#dev.off()
+#ND3
+#svg(filename = "../plots/arc_plots/WTKO_ND3_ARC.svg")
+Make_Double_Arc("../data/Structure/WT/Message_Structure/WT2_positive_ND3_1_348_35.ct","../data/Structure/KO/Message_Structure/KO2_positive_ND3_1_348_35.ct")
+#dev.off()
+#ND4
+#svg(filename = "../plots/arc_plots/WTKO_ND44L_ARC.svg")
+Make_Double_Arc("../data/Structure/WT/Message_Structure/WT2_positive_ND4_4L_1_1670_167.ct","../data/Structure/KO/Message_Structure/KO2_positive_ND4_4L_1_1670_167.ct")
+#dev.off()
+#ND5
+#svg(filename = "../plots/arc_plots/WTKO_ND5_ARC.svg")
+Make_Double_Arc("../data/Structure/WT/Message_Structure/WT2_positive_ND5_1_1812_181.ct","../data/Structure/KO/Message_Structure/KO2_positive_ND5_1_1812_181.ct")
+#dev.off()
+#svg(filename = "../plots/arc_plots/WTKO_ND6_ARC.svg")
+Make_Double_Arc("../data/Structure/WT/Message_Structure/WT2_negative_ND6_1_525_52.ct","../data/Structure/KO/Message_Structure/KO2_negative_ND6_1_525_53.ct")
+#dev.off()
+#ATP68
+#svg(filename = "../plots/arc_plots/WTKO_ATP68_ARC.svg")
+Make_Double_Arc("../data/Structure/WT/Message_Structure/WT2_positive_ATP68_1_842_84.ct","../data/Structure/KO/Message_Structure/KO2_positive_ATP68_1_842_84.ct")
+#dev.off()
+#CYTB
+#svg(filename = "../plots/arc_plots/WTKO_CYTB_ARC.svg")
+Make_Double_Arc("../data/Structure/WT/Message_Structure/WT2_positive_CYTB_1_1143_114.ct","../data/Structure/KO/Message_Structure/KO2_positive_CYTB_1_1143_114.ct")
+#dev.off()
+```
+
+
+## Figure 6
+
+#### A
+I merged all the clustering information and formatted the data into this large df:\n
+\bWT
+```{r message=FALSE, warning=FALSE}
+wt_cluster_df = read.csv("../data/Clustering/WT_ClusteringDF_Normalized.csv")
+#Proceed by gene sorry this is so clunky:
+wt_cluster_genes <- split(wt_cluster_df, wt_cluster_df$Gene)
+# To name the list keys after the gene names
+names(wt_cluster_genes) <- sapply(wt_cluster_genes, function(x) unique(x$Gene))
+#Make Correlation df:
+wt_cluster_correlation <- lapply(wt_cluster_genes, Get_Whole_Cluster_Correlation)
+names(wt_cluster_correlation) <- sapply(wt_cluster_correlation, function(x) unique(x$Gene))
+#Collapse into single df for Circos
+# Combine all dataframes into a single dataframe
+final_wt_cluster_correlation <- do.call(rbind, wt_cluster_correlation)
+# Order the combined dataframe by the Position column
+final_wt_cluster_correlation <- final_wt_cluster_correlation %>% arrange(Position)
+head(final_wt_cluster_correlation)
+###CIRCOS PLOTTING
+bins <- c(0, 0.3, 0.6, 1)  # Define the range boundaries
+labels <- c("yellow", "orange", "#e81717") # Labels for each range
+final_wt_cluster_correlation$Label <- cut(final_wt_cluster_correlation$correlation, breaks = bins, labels = labels, right = FALSE, include.lowest = F)
+final_wt_cluster_correlation$Label = as.character(final_wt_cluster_correlation$Label)
+#####PLOTTING###
+#svg("../plots/circos/wt_cluster_correlation.svg")
+Init_Circos_Mito()
+circos.par("track.height" = 0.3)
+circos.track(ylim = c(0,1))#Plot Lines
+for (i in 1:length(final_wt_cluster_correlation$Position)) {
+  if (is.na(final_wt_cluster_correlation$correlation[i])) {
+    circos.rect(xleft = final_wt_cluster_correlation$Position[i] ,xright = (final_wt_cluster_correlation$Position[i] + 1),
+                ybottom = 0, ytop = 0.9, col = "#787878",
+                border = "#787878")
+  } else{
+    circos.rect(xleft = final_wt_cluster_correlation$Position[i] ,xright = (final_wt_cluster_correlation$Position[i] + 1),
+                ybottom = 0, ytop = 0.9, col = final_wt_cluster_correlation$Label[i],
+                border = final_wt_cluster_correlation$Label[i])
+  }
+}
+```
+#### B
+Will plot the sliding window AUROC generated from the population average DMS reactivities and structures:
+```{r}
+#COX1
+COX1 = read.popavg("../Data/Reactivities/Message/WT/1p/WT2_positive_COX1_1_1545_popavg_reacts.txt")
+COX1_CT = Read.CT("../Data/Structure/WT/Message_Structure//WT2_positive_COX1_1_1545_155.ct")
+COX1_AUROC_slide = AUROC_Slide(mu_df = COX1, CT_File = COX1_CT, window_size = 100)
+plot(COX1_AUROC_slide$Position,COX1_AUROC_slide$AUC)
+write.csv(COX1_AUROC_slide,"../data/AUROC/COX1_WT_AUROC_SLIDE_100nt.csv")
+#COX2
+COX2 = read.popavg("../Data/Reactivities/Message/WT/1p/WT2_positive_mito_genome_7585_8268_popavg_reacts.txt")
+COX2_CT = Read.CT("../Data/Structure/WT/Message_Structure/WT2_positive_COX2_1_683_68.ct")
+COX2_AUROC_slide = AUROC_Slide(mu_df = COX2, CT_File = COX2_CT, window_size = 100)
+plot(COX2_AUROC_slide$Position,COX2_AUROC_slide$AUC)
+write.csv(COX2_AUROC_slide,"../data/AUROC/COX2_WT_AUROC_SLIDE_100nt.csv")
+#COX3
+COX3 = read.popavg("../Data/Reactivities/Message/WT/1p/WT2_positive_COX3_1_786_popavg_reacts.txt")
+COX3_CT = Read.CT("../Data/Structure/WT/Message_Structure/WT2_positive_COX3_1_786_79.ct")
+COX3_AUROC_slide = AUROC_Slide(mu_df = COX3, CT_File = COX3_CT, window_size = 100)
+plot(COX3_AUROC_slide$Position,COX3_AUROC_slide$AUC)
+write.csv(COX3_AUROC_slide,"../data/AUROC/COX3_WT_AUROC_SLIDE_100nt.csv")
+#ND1
+ND1 = read.popavg("../Data/Reactivities/Message/WT/1p/WT2_positive_ND1_1_959_popavg_reacts.txt")
+ND1_CT = Read.CT("../Data/Structure/WT/Message_Structure/WT2_positive_ND1_1_959_96.ct")
+ND1_AUROC_slide = AUROC_Slide(mu_df = ND1, CT_File = ND1_CT, window_size = 100)
+plot(ND1_AUROC_slide$Position,ND1_AUROC_slide$AUC)
+write.csv(ND1_AUROC_slide,"../data/AUROC/ND1_WT_AUROC_SLIDE_100nt.csv")
+#ND2
+ND2 = read.popavg("../Data/Reactivities/Message/WT/1p/WT2_positive_ND2_1_1044_popavg_reacts.txt")
+ND2_CT = Read.CT("../Data/Structure/WT/Message_Structure/WT2_positive_ND2_1_1044_104.ct")
+ND2_AUROC_slide = AUROC_Slide(mu_df = ND2, CT_File = ND2_CT, window_size = 100)
+plot(ND2_AUROC_slide$Position,ND2_AUROC_slide$AUC)
+write.csv(ND2_AUROC_slide,"../data/AUROC/ND2_WT_AUROC_SLIDE_100nt.csv")
+#ND3
+ND3 = read.popavg("../Data/Reactivities/Message/WT/1p/WT2_positive_ND3_1_348_popavg_reacts.txt")
+ND3_CT = Read.CT("../Data/Structure/WT/Message_Structure/WT2_positive_ND3_1_348_35.ct")
+ND3_AUROC_slide = AUROC_Slide(mu_df = ND3, CT_File = ND3_CT, window_size = 100)
+plot(ND3_AUROC_slide$Position,ND3_AUROC_slide$AUC)
+write.csv(ND3_AUROC_slide,"../data/AUROC/ND3_WT_AUROC_SLIDE_100nt.csv")
+#ND44L
+ND44L = read.popavg("../Data/Reactivities/Message/WT/1p/WT2_positive_ND4_4L_1_1670_popavg_reacts.txt")
+ND44L_CT = Read.CT("../Data/Structure/WT/Message_Structure/WT2_positive_ND4_4L_1_1670_167.ct")
+ND44L_AUROC_slide = AUROC_Slide(mu_df = ND44L, CT_File = ND44L_CT, window_size = 100)
+plot(ND44L_AUROC_slide$Position,ND44L_AUROC_slide$AUC)
+write.csv(ND44L_AUROC_slide,"../data/AUROC/ND44L_WT_AUROC_SLIDE_100nt.csv")
+#ND5
+ND5 = read.popavg("../Data/Reactivities/Message/WT/1p/WT2_positive_ND5_1_1812_popavg_reacts.txt")
+ND5_CT = Read.CT("../Data/Structure/WT/Message_Structure/WT2_positive_ND5_1_1812_181.ct")
+ND5_AUROC_slide = AUROC_Slide(mu_df = ND5, CT_File = ND5_CT, window_size = 100)
+plot(ND5_AUROC_slide$Position,ND5_AUROC_slide$AUC)
+write.csv(ND5_AUROC_slide,"../data/AUROC/ND5_WT_AUROC_SLIDE_100nt.csv")
+#ND6
+ND6 = read.popavg("../Data/Reactivities/Message/WT/1p/WT2_negative_ND6_1_525_popavg_reacts.txt")
+ND6_CT = Read.CT("../Data/Structure/WT/Message_Structure/WT2_negative_ND6_1_525_52.ct")
+ND6_AUROC_slide = AUROC_Slide(mu_df = ND6, CT_File = ND6_CT, window_size = 100)
+plot(ND6_AUROC_slide$Position,ND6_AUROC_slide$AUC)
+write.csv(ND6_AUROC_slide,"../data/AUROC/ND6_WT_AUROC_SLIDE_100nt.csv")
+#ATP68
+ATP68 = read.popavg("../Data/Reactivities/Message/WT/1p/WT2_positive_ATP68_1_842_popavg_reacts.txt")
+ATP68_CT = Read.CT("../Data/Structure/WT/Message_Structure/WT2_positive_ATP68_1_842_84.ct")
+ATP68_AUROC_slide = AUROC_Slide(mu_df = ATP68, CT_File = ATP68_CT, window_size = 100)
+plot(ATP68_AUROC_slide$Position,ATP68_AUROC_slide$AUC)
+write.csv(ATP68_AUROC_slide,"../data/AUROC/ATP68_WT_AUROC_SLIDE_100nt.csv")
+#CYTB
+CYTB = read.popavg("../Data/Reactivities/Message/WT/1p/WT2_positive_CYTB_1_1143_popavg_reacts.txt")
+CYTB_CT = Read.CT("../Data/Structure/WT/Message_Structure/WT2_positive_CYTB_1_1143_114.ct")
+CYTB_AUROC_slide = AUROC_Slide(mu_df = CYTB, CT_File = CYTB_CT, window_size = 100)
+plot(CYTB_AUROC_slide$Position,CYTB_AUROC_slide$AUC)
+write.csv(CYTB_AUROC_slide,"../data/AUROC/CYTB_WT_AUROC_SLIDE_100nt.csv")
+
+```
+#### C
+```{r message=FALSE, warning=FALSE}
+ko_cluster_df = read.csv("../data/Clustering/KO_ClusteringDF_Normalized.csv")
+#Proceed by gene sorry this is so clunky:
+ko_cluster_genes <- split(ko_cluster_df, ko_cluster_df$Gene)
+# To name the list keys after the gene names
+names(ko_cluster_genes) <- sapply(ko_cluster_genes, function(x) unique(x$Gene))
+#Make Correlation df:
+ko_cluster_correlation <- lapply(ko_cluster_genes, Get_Whole_Cluster_Correlation)
+names(ko_cluster_correlation) <- sapply(ko_cluster_correlation, function(x) unique(x$Gene))
+#Collapse into single df for Circos
+# Combine all dataframes into a single dataframe
+final_ko_cluster_correlation <- do.call(rbind, ko_cluster_correlation)
+# Order the combined dataframe by the Position column
+final_ko_cluster_correlation <- final_ko_cluster_correlation %>% arrange(Position)
+head(final_ko_cluster_correlation)
+###CIRCOS PLOTTING
+bins <- c(0, 0.3, 0.6, 1)  # Define the range boundaries
+labels <- c("yellow", "orange", "#e81717") # Labels for each range
+final_ko_cluster_correlation$Label <- cut(final_ko_cluster_correlation$correlation, breaks = bins, labels = labels, right = FALSE, include.lowest = F)
+final_ko_cluster_correlation$Label = as.character(final_ko_cluster_correlation$Label)
+#####PLOTTING###
+#svg("../plots/circos/ko_cluster_correlation.svg")
+Init_Circos_Mito()
+circos.par("track.height" = 0.3)
+circos.track(ylim = c(0,1))#Plot Lines
+for (i in 1:length(final_ko_cluster_correlation$Position)) {
+  if (is.na(final_ko_cluster_correlation$correlation[i])) {
+    circos.rect(xleft = final_ko_cluster_correlation$Position[i] ,xright = (final_ko_cluster_correlation$Position[i] + 1),
+                ybottom = 0, ytop = 0.9, col = "#787878",
+                border = "#787878")
+  } else{
+    circos.rect(xleft = final_ko_cluster_correlation$Position[i] ,xright = (final_ko_cluster_correlation$Position[i] + 1),
+                ybottom = 0, ytop = 0.9, col = final_ko_cluster_correlation$Label[i],
+                border = final_ko_cluster_correlation$Label[i])
+  }
+}
+```
+# Supplementary Figures
+
+## Figure S1
+
+#### C
+Compare 5% DMS to 1% DMS to 0.5% DMS
+```{r}
+cutoff_threshold = 0.3
+#Load 5%
+point_five_percent_cox1_1 = read.popavg(path = "../data/Reactivities/Message/WT/0.5p/half1_positive_COX1_1_1545_popavg_reacts.txt")
+point_five_percent_cox1_2 = read.popavg(path = "../data/Reactivities/Message/WT/0.5p/half2_positive_COX1_1_1545_popavg_reacts.txt")
+#Remove Outliers
+point_five_percent_cox1_1 <- point_five_percent_cox1_1 %>%
+  mutate(Mismatches...Deletions = if_else(Mismatches...Deletions > cutoff_threshold, NA_real_, Mismatches...Deletions))
+point_five_percent_cox1_2 <- point_five_percent_cox1_2 %>%
+  mutate(Mismatches...Deletions = if_else(Mismatches...Deletions > cutoff_threshold, NA_real_, Mismatches...Deletions))
+#Plot Replicates
+plot(point_five_percent_cox1_1$Mismatches...Deletions,point_five_percent_cox1_2$Mismatches...Deletions)
+
+#Load 1%
+one_percent_cox1_1 = read.popavg("../data/Reactivities/Message/WT/1p/WT1_positive_COX1_1_1545_popavg_reacts.txt")
+one_percent_cox1_2 = read.popavg("../data/Reactivities/Message/WT/1p/WT2_positive_COX1_1_1545_popavg_reacts.txt")
+#Remove Outliers
+one_percent_cox1_1 <- one_percent_cox1_1 %>%
+  mutate(Mismatches...Deletions = if_else(Mismatches...Deletions > cutoff_threshold, NA_real_, Mismatches...Deletions))
+one_percent_cox1_2 <- one_percent_cox1_2 %>%
+  mutate(Mismatches...Deletions = if_else(Mismatches...Deletions > cutoff_threshold, NA_real_, Mismatches...Deletions))
+#Plot Replicates
+plot(one_percent_cox1_1$Mismatches...Deletions,one_percent_cox1_2$Mismatches...Deletions)
+
+#Load 5%
+five_percent_cox1_1 = read.popavg(path = "../data/Reactivities/Message/WT/5p/mitoDMS1_positive_COX1_1_1545_popavg_reacts.txt")
+five_percent_cox1_2 = read.popavg(path = "../data/Reactivities/Message/WT/5p/mitoDMS2_positive_COX1_1_1545_popavg_reacts.txt")
+#Remove Outliers
+five_percent_cox1_1 <- five_percent_cox1_1 %>%
+  mutate(Mismatches...Deletions = if_else(Mismatches...Deletions > cutoff_threshold, NA_real_, Mismatches...Deletions))
+five_percent_cox1_2 <- five_percent_cox1_2 %>%
+  mutate(Mismatches...Deletions = if_else(Mismatches...Deletions > cutoff_threshold, NA_real_, Mismatches...Deletions))
+#Plot Replicates
+plot(five_percent_cox1_1$Mismatches...Deletions,five_percent_cox1_2$Mismatches...Deletions)
+
+####Comparisons between percentages:
+#5% vs 1%
+plot(five_percent_cox1_1$Mismatches...Deletions,one_percent_cox1_1$Mismatches...Deletions)
+#1% vs 0.5%
+plot(one_percent_cox1_1$Mismatches...Deletions,point_five_percent_cox1_1$Mismatches...Deletions)
+
+
+```
+#### D
+Plotting all replicates from wt 1% DMS
+```{r}
+#for csvs:
+make_message_table = function(pos_avg.list,Message){
+  mWT1 = pos_avg.list$WT1 %>%
+    filter(Gene == Message)
+  mWT2 = pos_avg.list$WT2 %>%
+    filter(Gene == Message)
+  mWT1 = get_AC(mWT1)
+  mWT2 = get_AC(mWT2)
+  message_tibble = tibble(WT1 = mWT1$Mismatches...Deletions,
+                          WT2 = mWT2$Mismatches...Deletions,
+                          Base = mWT1$Base,
+                          Position = mWT1$Position)
+  return(message_tibble)
+}
+
+#ND1
+nd1_wt = make_message_table(pos_avg.list, "ND1")
+plot(nd1_wt$WT1,nd1_wt$WT2)
+write.csv(make_message_table(pos_avg.list,"ND1"),"../csv_out/correlations//WT_ND1.csv")
+#ND2
+nd2_wt = make_message_table(pos_avg.list, "ND2")
+plot(nd2_wt$WT1,nd2_wt$WT2)
+write.csv(make_message_table(pos_avg.list,"ND2"),"../csv_out/correlations/WT_ND2.csv")
+#ND3
+nd3_wt = make_message_table(pos_avg.list, "ND3")
+plot(nd3_wt$WT1,nd3_wt$WT2)
+write.csv(make_message_table(pos_avg.list,"ND3"),"../csv_out/correlations/WT_ND3.csv")
+#ND4
+nd4_wt = make_message_table(pos_avg.list, "ND4L/4")
+plot(nd4_wt$WT1,nd4_wt$WT2)
+write.csv(make_message_table(pos_avg.list,"ND4L/4"),"../csv_out/correlations/WT_ND4.csv")
+#ND5
+nd5_wt = make_message_table(pos_avg.list, "ND5")
+plot(nd5_wt$WT1,nd5_wt$WT2)
+write.csv(make_message_table(pos_avg.list,"ND5"),"../csv_out/correlations/WT_ND5.csv")
+#ND6
+nd6_wt = make_message_table(neg_avg.list, "ND6")
+plot(nd6_wt$WT1,nd6_wt$WT2)
+write.csv(make_message_table(neg_avg.list,"ND6"),"../csv_out/correlations/WT_ND6.csv")
+#COX1
+cox1_wt = make_message_table(pos_avg.list, "COX1")
+plot(cox1_wt$WT1,cox1_wt$WT2)
+write.csv(make_message_table(pos_avg.list,"COX1"),"../csv_out/correlations/WT_COX1.csv")
+#COX2
+cox2_wt = make_message_table(pos_avg.list, "COX2")
+plot(cox2_wt$WT1,cox2_wt$WT2)
+write.csv(make_message_table(pos_avg.list,"COX2"),"../csv_out/correlations/WT_COX2.csv")
+#COX3
+cox3_wt = make_message_table(pos_avg.list, "COX3")
+plot(cox3_wt$WT1,cox3_wt$WT2)
+write.csv(make_message_table(pos_avg.list,"COX3"),"../csv_out/correlations/WT_COX3.csv")
+#ATP68
+atp68_wt = make_message_table(pos_avg.list, "ATP68")
+plot(atp68_wt$WT1,atp68_wt$WT2)
+write.csv(make_message_table(pos_avg.list,"ATP68"),"../csv_out/correlations/WT_ATP68.csv")
+#CYTB
+cytb_wt = make_message_table(pos_avg.list, "CYTB")
+plot(cytb_wt$WT1,cytb_wt$WT2)
+write.csv(make_message_table(pos_avg.list,"CYTB"),"../csv_out/correlations/WT_CYTB.csv")
+#7S
+#7S
+WT1_7S = get_AC(read.popavg("../data/Reactivities/Message/WT/1p/WT1_negative_7S_RNA_1_172_popavg_reacts.txt"))
+WT2_7S = get_AC(read.popavg("../data/Reactivities/Message/WT/1p/WT2_negative_7S_RNA_1_172_popavg_reacts.txt"))
+
+S_csv = tibble(WT1 = WT1_7S$Mismatches...Deletions,
+               WT2 = WT2_7S$Mismatches...Deletions,
+               Base = WT1_7S$Base,
+               Position = WT1_7S$Position)
+plot(S_csv$WT1,S_csv$WT2)
+write.csv(S_csv,"../csv_out/correlations/wt/WT_7S.csv")
+```
+
+## Figure S2
+```{r}
+cutoff_threshold = 0.2
+#COX1#
+WT_COX1 = read.popavg("../data/Reactivities/Message/WT/1p/WT_positive_COX1_UTR_1_1618_popavg_reacts.txt")
+COX1_noCAP = read.csv("../data/Reactivities/Message/Cap/1p/NoCap/noCAP_COX1_UTR.csv")
+WT_COX1 = get_AC(WT_COX1)
+COX1_noCAP = get_AC(COX1_noCAP)
+#remove polyA
+COX1_noCAP = COX1_noCAP[1:931,]
+#Filtering very reactive bases
+WT_COX1 <- WT_COX1 %>%
+  mutate(Mismatches...Deletions = if_else(Mismatches...Deletions > cutoff_threshold, NA_real_, Mismatches...Deletions))
+COX1_noCAP <- COX1_noCAP %>%
+  mutate(Mismatches...Deletions = if_else(Mismatches...Deletions > cutoff_threshold, NA_real_, Mismatches...Deletions))
+#Writing output
+plot(WT_COX1$Mismatches...Deletions,COX1_noCAP$Mismatches...Deletions)
+cor(WT_COX1$Mismatches...Deletions,COX1_noCAP$Mismatches...Deletions, use = "complete.obs", method = "pearson")
+write.csv(tibble(WT_Reacts = WT_COX1$Mismatches...Deletions,
+                 NoCap_Reacts = COX1_noCAP$Mismatches...Deletions,
+                 Base = WT_COX1$Base,
+                 Position= WT_COX1$Position),
+          "../csv_out/correlations/wt_vs_buffer/COX1_CapNoCAP.csv")
+#COX2#
+WT_COX2 = get_AC(read.popavg("../Data/Reactivities/Message/WT/1p/WT1_positive_mito_genome_7585_8268_popavg_reacts.txt"))
+noCAP_COX2 = get_AC(read.popavg("../Data/Reactivities/Message/Cap/1p/NoCap/WT_Cap_positive_COX2_1_684_popavg_reacts.txt",))
+
+WT_COX2 <- WT_COX2 %>%
+  mutate(Mismatches...Deletions = if_else(Mismatches...Deletions > cutoff_threshold, NA_real_, Mismatches...Deletions))
+noCAP_COX2 <- noCAP_COX2 %>%
+  mutate(Mismatches...Deletions = if_else(Mismatches...Deletions > cutoff_threshold, NA_real_, Mismatches...Deletions))
+plot(WT_COX2$Mismatches...Deletions,noCAP_COX2$Mismatches...Deletions)
+cor(WT_COX2$Mismatches...Deletions,noCAP_COX2$Mismatches...Deletions, use = "complete.obs", method = "pearson")
+write.csv(tibble(WT_Reacts = WT_COX2$Mismatches...Deletions,
+                 NoCap_Reacts = noCAP_COX2$Mismatches...Deletions,
+                 Base = WT_COX2$Base,
+                 Position= WT_COX2$Position),
+          "../csv_out/correlations/wt_vs_buffer/COX2_CapNoCAP.csv")
+#COX3#
+WT_COX3 = get_AC(read.popavg("../Data/Reactivities/Message/WT/1p/WT2_positive_COX3_1_786_popavg_reacts.txt"))
+noCAP_COX3 = get_AC(read.popavg("../Data/Reactivities/Message/Cap/1p/NoCap/WT_Cap_positive_COX3_1_786_popavg_reacts.txt",))
+
+WT_COX3 <- WT_COX3 %>%
+  mutate(Mismatches...Deletions = if_else(Mismatches...Deletions > cutoff_threshold, NA_real_, Mismatches...Deletions))
+noCAP_COX3 <- noCAP_COX3 %>%
+  mutate(Mismatches...Deletions = if_else(Mismatches...Deletions > cutoff_threshold, NA_real_, Mismatches...Deletions))
+
+plot(WT_COX3$Mismatches...Deletions,noCAP_COX3$Mismatches...Deletions)
+cor(WT_COX3$Mismatches...Deletions,noCAP_COX3$Mismatches...Deletions, use = "complete.obs", method = "pearson")
+write.csv(tibble(WT_Reacts = WT_COX3$Mismatches...Deletions,
+                 NoCap_Reacts = noCAP_COX3$Mismatches...Deletions,
+                 Base = WT_COX3$Base,
+                 Position= WT_COX3$Position),
+          "../csv_out/correlations/wt_vs_buffer/COX3_CapNoCAP.csv")
+
+#ND1#
+WT_ND1 = get_AC(read.popavg("../Data/Reactivities/Message/WT/1p/WT2_positive_ND1_1_959_popavg_reacts.txt"))
+noCAP_ND1 = get_AC(read.popavg("../Data/Reactivities/Message/Cap/1p/NoCap/WT_Cap_positive_ND1_1_959_popavg_reacts.txt",))
+
+WT_ND1 <- WT_ND1 %>%
+  mutate(Mismatches...Deletions = if_else(Mismatches...Deletions > cutoff_threshold, NA_real_, Mismatches...Deletions))
+noCAP_ND1 <- noCAP_ND1 %>%
+  mutate(Mismatches...Deletions = if_else(Mismatches...Deletions > cutoff_threshold, NA_real_, Mismatches...Deletions))
+
+
+plot(WT_ND1$Mismatches...Deletions,noCAP_ND1$Mismatches...Deletions)
+cor(WT_ND1$Mismatches...Deletions,noCAP_ND1$Mismatches...Deletions, use = "complete.obs", method = "pearson")
+
+write.csv(tibble(WT_Reacts = WT_ND1$Mismatches...Deletions,
+                 NoCap_Reacts = noCAP_ND1$Mismatches...Deletions,
+                 Base = WT_ND1$Base,
+                 Position= noCAP_ND1$Position),
+          "../csv_out/correlations/wt_vs_buffer/ND1_CapNoCAP.csv")
+
+
+
+
+#ND2
+WT_ND2 = get_AC(read.popavg("../Data/Reactivities/Message/WT/1p/WT2_positive_ND2_1_1044_popavg_reacts.txt"))
+noCAP_ND2 = get_AC(read.popavg("../Data/Reactivities/Message/Cap/1p/NoCap/WT_Cap_positive_ND2_1_1044_popavg_reacts.txt",))
+
+WT_ND2 <- WT_ND2 %>%
+  mutate(Mismatches...Deletions = if_else(Mismatches...Deletions > cutoff_threshold, NA_real_, Mismatches...Deletions))
+noCAP_ND2 <- noCAP_ND2 %>%
+  mutate(Mismatches...Deletions = if_else(Mismatches...Deletions > cutoff_threshold, NA_real_, Mismatches...Deletions))
+
+plot(WT_ND2$Mismatches...Deletions,noCAP_ND2$Mismatches...Deletions)
+cor(WT_ND2$Mismatches...Deletions,noCAP_ND2$Mismatches...Deletions, use = "complete.obs", method = "pearson")
+
+write.csv(tibble(WT_Reacts = WT_ND2$Mismatches...Deletions,
+                 NoCap_Reacts = noCAP_ND2$Mismatches...Deletions,
+                 Base = WT_ND2$Base,
+                 Position= noCAP_ND2$Position),
+          "../csv_out/correlations/wt_vs_buffer/ND2_CapNoCAP.csv")
+
+
+cor(WT_ND2$Mismatches...Deletions,noCAP_ND2$Mismatches...Deletions, use = "complete.obs")^2
+plot(WT_ND2$Mismatches...Deletions,noCAP_ND2$Mismatches...Deletions)
+#ND3
+WT_ND3 = get_AC(read.popavg("../Data/Reactivities/Message/WT/1p/WT2_positive_ND3_1_348_popavg_reacts.txt"))
+noCAP_ND3 = get_AC(read.popavg("../Data/Reactivities/Message/Cap/1p/NoCap/WT_Cap_positive_ND3_1_348_popavg_reacts.txt",))
+
+
+
+WT_ND3 <- WT_ND3 %>%
+  mutate(Mismatches...Deletions = if_else(Mismatches...Deletions > cutoff_threshold, NA_real_, Mismatches...Deletions))
+noCAP_ND3 <- noCAP_ND3 %>%
+  mutate(Mismatches...Deletions = if_else(Mismatches...Deletions > cutoff_threshold, NA_real_, Mismatches...Deletions))
+
+cor(WT_ND3$Mismatches...Deletions,noCAP_ND3$Mismatches...Deletions, use = "complete.obs")^2
+plot(WT_ND3$Mismatches...Deletions,noCAP_ND3$Mismatches...Deletions)
+
+write.csv(tibble(WT_Reacts = WT_ND3$Mismatches...Deletions,
+                 NoCap_Reacts = noCAP_ND3$Mismatches...Deletions,
+                 Base = WT_ND3$Base,
+                 Position= noCAP_ND3$Position),
+          "../csv_out/correlations/wt_vs_buffer/ND3_CapNoCAP.csv")
+
+
+#ND44L
+WT_ND44L = get_AC(read.popavg("../Data/Reactivities/Message/WT/1p/WT2_positive_ND4_4L_1_1670_popavg_reacts.txt"))
+noCAP_ND44L = get_AC(read.popavg("../Data/Reactivities/Message/Cap/1p/NoCap/WT_Cap_positive_ND4_4L_1_1670_popavg_reacts.txt",))
+
+WT_ND44L <- WT_ND44L %>%
+  mutate(Mismatches...Deletions = if_else(Mismatches...Deletions > cutoff_threshold, NA_real_, Mismatches...Deletions))
+noCAP_ND44L <- noCAP_ND44L %>%
+  mutate(Mismatches...Deletions = if_else(Mismatches...Deletions > cutoff_threshold, NA_real_, Mismatches...Deletions))
+
+cor(WT_ND44L$Mismatches...Deletions,noCAP_ND44L$Mismatches...Deletions, use = "complete.obs")^2
+plot(WT_ND44L$Mismatches...Deletions,noCAP_ND44L$Mismatches...Deletions)
+
+write.csv(tibble(WT_Reacts = WT_ND44L$Mismatches...Deletions,
+                 NoCap_Reacts = noCAP_ND44L$Mismatches...Deletions,
+                 Base = WT_ND44L$Base,
+                 Position= noCAP_ND44L$Position),
+          "../csv_out/correlations/wt_vs_buffer/ND44L_CapNoCAP.csv")
+
+
+cor(WT_ND44L$Mismatches...Deletions,noCAP_ND44L$Mismatches...Deletions, use = "complete.obs")^2
+plot(WT_ND44L$Mismatches...Deletions,noCAP_ND44L$Mismatches...Deletions)
+
+#ND5
+WT_ND5 = get_AC(read.popavg("../Data/Reactivities/Message/WT/1p/WT2_positive_ND5_1_1812_popavg_reacts.txt"))
+noCAP_ND5 = get_AC(read.popavg("../Data/Reactivities/Message/Cap/1p/NoCap/WT_Cap_positive_ND5_1_1812_popavg_reacts.txt",))
+
+WT_ND5 <- WT_ND5 %>%
+  mutate(Mismatches...Deletions = if_else(Mismatches...Deletions > cutoff_threshold, NA_real_, Mismatches...Deletions))
+noCAP_ND5 <- noCAP_ND5 %>%
+  mutate(Mismatches...Deletions = if_else(Mismatches...Deletions > cutoff_threshold, NA_real_, Mismatches...Deletions))
+
+cor(WT_ND5$Mismatches...Deletions,noCAP_ND5$Mismatches...Deletions, use = "complete.obs")^2
+plot(WT_ND5$Mismatches...Deletions,noCAP_ND5$Mismatches...Deletions)
+
+
+write.csv(tibble(WT_Reacts = WT_ND5$Mismatches...Deletions,
+                 NoCap_Reacts = noCAP_ND5$Mismatches...Deletions,
+                 Base = WT_ND5$Base,
+                 Position= noCAP_ND5$Position),
+          "../csv_out/correlations/wt_vs_buffer/ND5_CapNoCAP.csv")
+
+#CYTB
+WT_CYTB = get_AC(read.popavg("../Data/Reactivities/Message/WT/1p/WT2_positive_CYTB_1_1143_popavg_reacts.txt"))
+noCAP_CYTB = get_AC(read.popavg("../Data/Reactivities/Message/Cap/1p/NoCap/WT_Cap_positive_CYTB_1_1143_popavg_reacts.txt",))
+
+WT_CYTB <- WT_CYTB %>%
+  mutate(Mismatches...Deletions = if_else(Mismatches...Deletions > cutoff_threshold, NA_real_, Mismatches...Deletions))
+noCAP_CYTB <- noCAP_CYTB %>%
+  mutate(Mismatches...Deletions = if_else(Mismatches...Deletions > cutoff_threshold, NA_real_, Mismatches...Deletions))
+
+cor(WT_CYTB$Mismatches...Deletions,noCAP_CYTB$Mismatches...Deletions, use = "complete.obs")^2
+plot(WT_CYTB$Mismatches...Deletions,noCAP_CYTB$Mismatches...Deletions)
+
+
+write.csv(tibble(WT_Reacts = WT_CYTB$Mismatches...Deletions,
+                 NoCap_Reacts = noCAP_CYTB$Mismatches...Deletions,
+                 Base = WT_CYTB$Base,
+                 Position= noCAP_CYTB$Position),
+          "../csv_out/correlations/wt_vs_buffer/CYTB_CapNoCAP.csv")
+
+#ND6
+WT_ND6 = get_AC(read.popavg("../Data/Reactivities/Message/WT/1p/WT2_negative_ND6_1_525_popavg_reacts.txt"))
+noCAP_ND6 = get_AC(read.popavg("../Data/Reactivities/Message/Cap/1p/NoCap/WT_Cap_negative_ND6_1_525_popavg_reacts.txt",))
+WT_ND6 <- WT_ND6 %>%
+  mutate(Mismatches...Deletions = if_else(Mismatches...Deletions > 0.2, NA_real_, Mismatches...Deletions))
+noCAP_ND6 <- noCAP_ND6 %>%
+  mutate(Mismatches...Deletions = if_else(Mismatches...Deletions > 0.2, NA_real_, Mismatches...Deletions))
+
+plot(WT_ND6$Mismatches...Deletions,noCAP_ND6$Mismatches...Deletions)
+cor(WT_ND6$Mismatches...Deletions,noCAP_ND6$Mismatches...Deletions, use = "complete.obs")^2
+
+write.csv(tibble(WT_Reacts = WT_ND6$Mismatches...Deletions,
+                 NoCap_Reacts = noCAP_ND6$Mismatches...Deletions,
+                 Base = WT_ND6$Base,
+                 Position= noCAP_ND6$Position),
+          "../csv_out/correlations/wt_vs_buffer/ND6_noCAP.csv")
+
+#ATP68
+WT_ATP68 = get_AC(read.popavg("../Data/Reactivities/Message/WT/1p/WT2_positive_ATP68_1_842_popavg_reacts.txt"))
+noCAP_ATP68 = get_AC(read.popavg("../Data/Reactivities/Message/Cap/1p/NoCap/WT_Cap_positive_ATP68_1_842_popavg_reacts.txt",))
+
+WT_ATP68 <- WT_ATP68 %>%
+  mutate(Mismatches...Deletions = if_else(Mismatches...Deletions > cutoff_threshold, NA_real_, Mismatches...Deletions))
+noCAP_ATP68 <- noCAP_ATP68 %>%
+  mutate(Mismatches...Deletions = if_else(Mismatches...Deletions > cutoff_threshold, NA_real_, Mismatches...Deletions))
+
+write.csv(tibble(WT_Reacts = WT_ATP68$Mismatches...Deletions,
+                 NoCap_Reacts = noCAP_ATP68$Mismatches...Deletions,
+                 Base = WT_ATP68$Base,
+                 Position= noCAP_ATP68$Position),
+          "../csv_out/correlations/wt_vs_buffer/ATP68_CapNoCAP.csv")
+
+plot(WT_ATP68$Mismatches...Deletions,noCAP_ATP68$Mismatches...Deletions)
+cor(WT_ATP68$Mismatches...Deletions,noCAP_ATP68$Mismatches...Deletions, use = "complete.obs")^2
+
+
+#7S RNA
+
+WT_7S = get_AC(read.popavg("../Data/Reactivities/Message/WT/1p/WT2_negative_7S_RNA_1_172_popavg_reacts.txt"))
+noCAP_7S = get_AC(read.popavg("../Data/Reactivities/Message/Cap/1p/NoCap/WT_Cap_negative_7S_RNA_1_172_popavg_reacts.txt",))
+
+WT_7S <- WT_7S %>%
+  mutate(Mismatches...Deletions = if_else(Mismatches...Deletions > cutoff_threshold, NA_real_, Mismatches...Deletions))
+noCAP_7S <- noCAP_7S %>%
+  mutate(Mismatches...Deletions = if_else(Mismatches...Deletions > cutoff_threshold, NA_real_, Mismatches...Deletions))
+
+
+write.csv(tibble(WT_Reacts = WT_7S$Mismatches...Deletions,
+                 NoCap_Reacts = noCAP_7S$Mismatches...Deletions,
+                 Base = WT_7S$Base,
+                 Position= noCAP_7S$Position),
+          "../csv_out/correlations/wt_vs_buffer/7S_CapNoCAP.csv")
+
+plot(WT_7S$Mismatches...Deletions,noCAP_7S$Mismatches...Deletions)
+cor(WT_7S$Mismatches...Deletions,noCAP_7S$Mismatches...Deletions, use = "complete.obs")^2
+
+```
+##Figure S3
+In Vitro
+#### A
+```{r}
+cutoff_threshold = 0.2
+#ND1
+nd1_ivt = read.popavg("../data/Reactivities/Message/InVitro/InVitro1_ND1_1_959_popavg_reacts.txt")
+nd1_ivt = get_AC(nd1_ivt)
+nd1_wt = read.popavg("../data/Reactivities/Message/WT/1p/WT2_positive_ND1_1_959_popavg_reacts.txt")
+nd1_wt = get_AC(nd1_wt)
+plot(nd1_ivt$Mismatches...Deletions,nd1_wt$Mismatches...Deletions)
+#ND2
+nd2_ivt = get_AC(read.popavg(path = "../data/Reactivities/Message/InVitro/InVitro2_ND2_1_1044_popavg_reacts.txt"))
+nd2_wt = get_AC(read.popavg(path = "../data/Reactivities/Message/WT/1p/WT2_positive_ND2_1_1044_popavg_reacts.txt"))
+nd2_wt <- nd2_wt %>%
+  mutate(Mismatches...Deletions = if_else(Mismatches...Deletions > cutoff_threshold, NA_real_, Mismatches...Deletions))
+plot(nd2_wt$Mismatches...Deletions,nd2_ivt$Mismatches...Deletions)
+#ND3
+nd3_ivt = get_AC(read.popavg("../Data/Reactivities/Message/InVitro/InVitro2_ND3_1_348_popavg_reacts.txt"))
+nd3_wt = get_AC(read.popavg(path = "../data/Reactivities/Message/WT/1p/WT2_positive_ND3_1_348_popavg_reacts.txt"))
+nd3_wt <- nd3_wt %>%
+  mutate(Mismatches...Deletions = if_else(Mismatches...Deletions > cutoff_threshold, NA_real_, Mismatches...Deletions))
+plot(nd3_wt$Mismatches...Deletions,nd3_ivt$Mismatches...Deletions)
+#ND44L
+nd44L_ivt = get_AC(read.popavg("../data/Reactivities/Message/InVitro/InVitro2_ND4_4L_1_1670_popavg_reacts.txt"))
+nd44L_wt = get_AC(read.popavg("../data/Reactivities/Message/WT/1p/WT2_positive_ND4_4L_1_1670_popavg_reacts.txt"))
+nd44L_wt <- nd44L_wt %>%
+  mutate(Mismatches...Deletions = if_else(Mismatches...Deletions > cutoff_threshold, NA_real_, Mismatches...Deletions))
+plot(nd44L_wt$Mismatches...Deletions,nd44L_ivt$Mismatches...Deletions)
+#ND5
+nd5_ivt = get_AC(read.popavg("../data/Reactivities/Message/InVitro/InVitro2_ND5_1_1812_popavg_reacts.txt"))
+nd5_wt = get_AC(read.popavg("../data/Reactivities/Message/WT/1p/WT2_positive_ND5_1_1812_popavg_reacts.txt"))
+nd5_wt <- nd5_wt %>%
+  mutate(Mismatches...Deletions = if_else(Mismatches...Deletions > cutoff_threshold, NA_real_, Mismatches...Deletions))
+plot(nd5_wt$Mismatches...Deletions,nd5_ivt$Mismatches...Deletions)
+#ND6
+nd6_ivt = get_AC(read.popavg("../data/Reactivities/Message/InVitro/ND6_1_ND6_1_525_popavg_reacts.txt"))
+nd6_wt = get_AC(read.popavg("../data/Reactivities/Message/WT/1p/WT2_negative_ND6_1_525_popavg_reacts.txt"))
+nd6_wt <- nd6_wt %>%
+  mutate(Mismatches...Deletions = if_else(Mismatches...Deletions > cutoff_threshold, NA_real_, Mismatches...Deletions))
+plot(nd6_wt$Mismatches...Deletions,nd6_ivt$Mismatches...Deletions, ylim = c(0,0.05))
+#COX1
+cox1_ivt = get_AC(read.popavg("../data/Reactivities/Message/InVitro/InVitro2_COX1_1_1545_popavg_reacts.txt"))
+cox1_wt = get_AC(read.popavg("../data/Reactivities/Message/WT/1p/WT2_positive_COX1_1_1545_popavg_reacts.txt"))
+cox1_wt <- cox1_wt %>%
+  mutate(Mismatches...Deletions = if_else(Mismatches...Deletions > cutoff_threshold, NA_real_, Mismatches...Deletions))
+plot(cox1_wt$Mismatches...Deletions,cox1_ivt$Mismatches...Deletions)
+#COX2
+cox2_ivt = get_AC(read.popavg("../data/Reactivities/Message/InVitro/InVitro2_COX2_1_684_popavg_reacts.txt"))
+cox2_wt = get_AC(read.popavg("../data/Reactivities/Message/WT/1p/WT2_positive_mito_genome_7585_8268_popavg_reacts.txt"))
+head(cox2_wt)
+head(cox2_ivt)
+cox2_wt <- cox2_wt %>%
+  mutate(Mismatches...Deletions = if_else(Mismatches...Deletions > cutoff_threshold, NA_real_, Mismatches...Deletions))
+plot(cox2_wt$Mismatches...Deletions,cox2_ivt$Mismatches...Deletions)
+#COX3
+cox3_ivt = get_AC(read.popavg("../data/Reactivities/Message/InVitro/InVitro1_COX3_1_786_popavg_reacts.txt"))
+cox3_wt = get_AC(read.popavg("../data/Reactivities/Message/WT/1p/WT2_positive_COX3_1_786_popavg_reacts.txt"))
+cox3_wt <- cox3_wt %>%
+  mutate(Mismatches...Deletions = if_else(Mismatches...Deletions > cutoff_threshold, NA_real_, Mismatches...Deletions))
+cox3_ivt <- cox3_ivt %>%
+  mutate(Mismatches...Deletions = if_else(Mismatches...Deletions > cutoff_threshold, NA_real_, Mismatches...Deletions))
+plot(cox3_wt$Mismatches...Deletions,cox3_ivt$Mismatches...Deletions)
+#CYTB
+cytb_ivt = get_AC(read.popavg("../data/Reactivities/Message/InVitro/InVitro2_CYTB_1_1143_popavg_reacts.txt"))
+cytb_wt = get_AC(read.popavg("../data/Reactivities/Message/WT/1p/WT2_positive_CYTB_1_1143_popavg_reacts.txt"))
+cytb_wt <- cytb_wt %>%
+  mutate(Mismatches...Deletions = if_else(Mismatches...Deletions > cutoff_threshold, NA_real_, Mismatches...Deletions))
+plot(cytb_wt$Mismatches...Deletions,cytb_ivt$Mismatches...Deletions)
+#ATP68
+atp68_ivt = get_AC(read.popavg("../data/Reactivities/Message/InVitro/InVitro2_ATP68_1_842_popavg_reacts.txt"))
+atp68_wt = get_AC(read.popavg("../data/Reactivities/Message/WT/1p/WT2_positive_ATP68_1_842_popavg_reacts.txt"))
+atp68_wt <- atp68_wt %>%
+  mutate(Mismatches...Deletions = if_else(Mismatches...Deletions > cutoff_threshold, NA_real_, Mismatches...Deletions))
+plot(atp68_wt$Mismatches...Deletions,atp68_ivt$Mismatches...Deletions)
+```
+#### Β
+```{r}
+cutoff_threshold = 0.2
+#ND1
+nd1_ivt = read.popavg("../data/Reactivities/Message/InVitro/InVitro1_ND1_1_959_popavg_reacts.txt")
+nd1_ivt = get_AC(nd1_ivt)
+nd1_KO = read.popavg("../data/Reactivities/Message/KO/1p/KO2_positive_ND1_1_959_popavg_reacts.txt")
+nd1_KO = get_AC(nd1_KO)
+plot(nd1_ivt$Mismatches...Deletions,nd1_KO$Mismatches...Deletions)
+#ND2
+nd2_ivt = get_AC(read.popavg(path = "../data/Reactivities/Message/InVitro/InVitro2_ND2_1_1044_popavg_reacts.txt"))
+nd2_KO = get_AC(read.popavg(path = "../data/Reactivities/Message/KO/1p/KO2_positive_ND2_1_1044_popavg_reacts.txt"))
+nd2_KO <- nd2_KO %>%
+  mutate(Mismatches...Deletions = if_else(Mismatches...Deletions > cutoff_threshold, NA_real_, Mismatches...Deletions))
+plot(nd2_KO$Mismatches...Deletions,nd2_ivt$Mismatches...Deletions)
+#ND3
+nd3_ivt = get_AC(read.popavg("../Data/Reactivities/Message/InVitro/InVitro2_ND3_1_348_popavg_reacts.txt"))
+nd3_KO = get_AC(read.popavg(path = "../data/Reactivities/Message/KO/1p/KO2_positive_ND3_1_348_popavg_reacts.txt"))
+nd3_KO <- nd3_KO %>%
+  mutate(Mismatches...Deletions = if_else(Mismatches...Deletions > cutoff_threshold, NA_real_, Mismatches...Deletions))
+plot(nd3_KO$Mismatches...Deletions,nd3_ivt$Mismatches...Deletions)
+#ND44L
+nd44L_ivt = get_AC(read.popavg("../data/Reactivities/Message/InVitro/InVitro2_ND4_4L_1_1670_popavg_reacts.txt"))
+nd44L_KO = get_AC(read.popavg("../data/Reactivities/Message/KO/1p/KO2_positive_ND4_4L_1_1670_popavg_reacts.txt"))
+nd44L_KO <- nd44L_KO %>%
+  mutate(Mismatches...Deletions = if_else(Mismatches...Deletions > cutoff_threshold, NA_real_, Mismatches...Deletions))
+plot(nd44L_KO$Mismatches...Deletions,nd44L_ivt$Mismatches...Deletions)
+#ND5
+nd5_ivt = get_AC(read.popavg("../data/Reactivities/Message/InVitro/InVitro2_ND5_1_1812_popavg_reacts.txt"))
+nd5_KO = get_AC(read.popavg("../data/Reactivities/Message/KO/1p/KO1_positive_ND5_1_1812_popavg_reacts.txt"))
+nd5_KO <- nd5_KO %>%
+  mutate(Mismatches...Deletions = if_else(Mismatches...Deletions > cutoff_threshold, NA_real_, Mismatches...Deletions))
+plot(nd5_KO$Mismatches...Deletions,nd5_ivt$Mismatches...Deletions)
+#ND6
+nd6_ivt = get_AC(read.popavg("../data/Reactivities/Message/InVitro/ND6_1_ND6_1_525_popavg_reacts.txt"))
+nd6_KO = get_AC(read.popavg("../data/Reactivities/Message/KO/1p/KO2_negative_ND6_1_525_popavg_reacts.txt"))
+nd6_KO <- nd6_KO %>%
+  mutate(Mismatches...Deletions = if_else(Mismatches...Deletions > cutoff_threshold, NA_real_, Mismatches...Deletions))
+plot(nd6_KO$Mismatches...Deletions,nd6_ivt$Mismatches...Deletions, ylim = c(0,0.05))
+#COX1
+cox1_ivt = get_AC(read.popavg("../data/Reactivities/Message/InVitro/InVitro2_COX1_1_1545_popavg_reacts.txt"))
+cox1_KO = get_AC(read.popavg("../data/Reactivities/Message/KO/1p/KO2_positive_COX1_1_1545_popavg_reacts.txt"))
+cox1_KO <- cox1_KO %>%
+  mutate(Mismatches...Deletions = if_else(Mismatches...Deletions > cutoff_threshold, NA_real_, Mismatches...Deletions))
+plot(cox1_KO$Mismatches...Deletions,cox1_ivt$Mismatches...Deletions)
+#COX2
+cox2_ivt = get_AC(read.popavg("../data/Reactivities/Message/InVitro/InVitro2_COX2_1_684_popavg_reacts.txt"))
+cox2_KO = get_AC(read.popavg("../data/Reactivities/Message/KO/1p/KO2_positive_mito_genome_7585_8268_popavg_reacts.txt"))
+head(cox2_KO)
+head(cox2_ivt)
+cox2_KO <- cox2_KO %>%
+  mutate(Mismatches...Deletions = if_else(Mismatches...Deletions > cutoff_threshold, NA_real_, Mismatches...Deletions))
+plot(cox2_KO$Mismatches...Deletions,cox2_ivt$Mismatches...Deletions)
+#COX3
+cox3_ivt = get_AC(read.popavg("../data/Reactivities/Message/InVitro/InVitro1_COX3_1_786_popavg_reacts.txt"))
+cox3_KO = get_AC(read.popavg("../data/Reactivities/Message/KO/1p/KO2_positive_COX3_1_786_popavg_reacts.txt"))
+cox3_KO <- cox3_KO %>%
+  mutate(Mismatches...Deletions = if_else(Mismatches...Deletions > cutoff_threshold, NA_real_, Mismatches...Deletions))
+cox3_ivt <- cox3_ivt %>%
+  mutate(Mismatches...Deletions = if_else(Mismatches...Deletions > cutoff_threshold, NA_real_, Mismatches...Deletions))
+plot(cox3_KO$Mismatches...Deletions,cox3_ivt$Mismatches...Deletions)
+#CYTB
+cytb_ivt = get_AC(read.popavg("../data/Reactivities/Message/InVitro/InVitro2_CYTB_1_1143_popavg_reacts.txt"))
+cytb_KO = get_AC(read.popavg("../data/Reactivities/Message/KO/1p/KO2_positive_CYTB_1_1143_popavg_reacts.txt"))
+cytb_KO <- cytb_KO %>%
+  mutate(Mismatches...Deletions = if_else(Mismatches...Deletions > cutoff_threshold, NA_real_, Mismatches...Deletions))
+plot(cytb_KO$Mismatches...Deletions,cytb_ivt$Mismatches...Deletions)
+#ATP68
+atp68_ivt = get_AC(read.popavg("../data/Reactivities/Message/InVitro/InVitro2_ATP68_1_842_popavg_reacts.txt"))
+atp68_KO = get_AC(read.popavg("../data/Reactivities/Message/KO/1p/KO2_positive_ATP68_1_842_popavg_reacts.txt"))
+atp68_KO <- atp68_KO %>%
+  mutate(Mismatches...Deletions = if_else(Mismatches...Deletions > cutoff_threshold, NA_real_, Mismatches...Deletions))
+plot(atp68_KO$Mismatches...Deletions,atp68_ivt$Mismatches...Deletions)
+```
+## Figure S5
+#### B
+Sequence Conservation
+```{r}
+fasta <- as.character(readBStringSet("../data/Conservation/ATP6_Alignment_Stem_Names_NoGap.fa"))
+p = ggmsa(fasta, font = NULL, seq_name = T,color = "Chemistry_NT",show.legend = TRUE)+ geom_seqlogo()
+p
+```
+
+## Figure S8
+#### A
+```{r message=FALSE, warning=FALSE}
+KO_Positive_Coverage = read.csv("../data/Coverage/KO_positive_coverage_BV.csv")
+colnames(KO_Positive_Coverage) = c("Position","Coverage")
+KO_Positive_Coverage_Circos = Convert_Circos_Coords(KO_Positive_Coverage)
+#First merge BV coverage from both KO replicates:
+KO1_Negative_Coverage = read.csv("../data/Coverage/KO1_negative_coverage_BV.csv")
+colnames(KO1_Negative_Coverage) = c("Position","Coverage")
+KO2_Negative_Coverage = read.csv("../data/Coverage/KO2_negative_coverage_BV.csv")
+colnames(KO2_Negative_Coverage) = c("Position","Coverage")
+KO2_Negative_Coverage$TotalCoverage = KO1_Negative_Coverage$Coverage + KO2_Negative_Coverage$Coverage
+KO_Negative_Coverage = Convert_Neg_Coords(KO2_Negative_Coverage)
+KO_Negative_Coverage = Convert_Circos_Coords(KO_Negative_Coverage)
+colnames(KO_Negative_Coverage) = c("Position","Coverage")
+
+#Plotting
+Init_Circos_Mito()
+circos.par("track.height" = 0.4) 
+Cov_Circos = KO_Positive_Coverage
+Cov_Neg_Circos = KO_Negative_Coverage
+
+max_positive_coverage = max(Cov_Circos$Coverage)
+max_positive_coverage = max_positive_coverage[1]
+
+max_negative_coverage = max(Cov_Neg_Circos$Coverage)
+max_negative_coverage = max_negative_coverage[1]
+
+gap = 200000
+circos.track(ylim = c((-max_negative_coverage - gap),(max_positive_coverage+gap)))
+circos.yaxis(
+  side = c("left"),
+  labels.niceFacing = TRUE,
+  labels.cex = 0.5,
+  at = c(-200000,-700000,-1200000,-1700000,
+         200000,700000,1200000,1700000
+  )
+)
+threshold = 100000
+for (i in 1:length(Cov_Circos$Position)) {
+  ###Positive Strand
+  if(Cov_Circos$Coverage[i] > threshold){
+    circos.rect(xleft = Cov_Circos$Position[i] ,xright = (Cov_Circos$Position[i] + 1),
+                ybottom = gap, ytop =Cov_Circos$Coverage[i]+gap,col = "#8E28A4", border ="#8E28A4")
+  }else{
+    circos.rect(xleft = Cov_Circos$Position[i] ,xright = (Cov_Circos$Position[i] + 1),
+                ybottom = gap, ytop =Cov_Circos$Coverage[i]+gap,col = "#C0D5F9", border ="#C0D5F9")
+  }
+  if(Cov_Neg_Circos$Coverage[i] > threshold){
+    circos.rect(xleft = Cov_Neg_Circos$Position[i] ,xright = (Cov_Neg_Circos$Position[i] + 1),
+                ybottom = (Cov_Neg_Circos$Coverage[i]*-1 - gap), ytop = - gap,col = "#8E28A4", border ="#8E28A4")
+  }else{
+    circos.rect(xleft = Cov_Neg_Circos$Position[i] ,xright = (Cov_Neg_Circos$Position[i] + 1),
+                ybottom = (Cov_Neg_Circos$Coverage[i]*-1 - gap), ytop = -gap ,col = "#C0D5F9", border ="#C0D5F9")
+  }
+}
+
+```
+
+#### Β
+```{r message=FALSE, warning=FALSE}
+pal <- wes_palette("GrandBudapest2", 4, type = "discrete")
+circos.csv = read.csv("../data/Circos_Table.csv") 
+mito_length = "16568"
+ticks = seq(0,17001,1000)
+df = data.frame(start = 0, end = 16568)
+rownames(df) = c("Mitochondria")
+
+###Positive Strand
+#Get Signal to Noise Sliding Windows:
+KO1_Pos_AC = DMS_React_Mean_Sliding(pos_avg.list$KO1,AC = T,GU = F,window_size = 80)
+KO1_Pos_GU = DMS_React_Mean_Sliding(pos_avg.list$KO1,AC = F,GU = T,window_size = 80)
+
+#Convert Coordinates
+KO1_Pos_AC = Convert_Circos_Coords(KO1_Pos_AC)
+KO1_Pos_GU = Convert_Circos_Coords(KO1_Pos_GU)
+
+#Plot Circos
+#svg("../plots/arc_plots/Circos_Plots/KO_Signal_Noise_Positive.svg")
+Init_Circos_Mito() 
+
+circos.par("track.height" = 0.4) 
+circos.track(ylim = c(0,0.06))
+circos.yaxis(
+  side = c("left"),
+  labels.niceFacing = TRUE,
+  labels.cex = 0.5
+)
+#Plot Lines
+circos.lines(x = 1:length(KO1_Pos_AC$Position), y = KO1_Pos_AC$DMS_Mean, lwd = 2, col = "#8E28A4")
+circos.lines(x = 1:length(KO1_Pos_GU$Position), y = KO1_Pos_GU$DMS_Mean, lwd = 2, col = "#C0D5F9")
+#dev.off()
+
+```
+#### C
+```{r message=FALSE, warning=FALSE}
+########KO###########
+###POSITIVE STRAND
+KO1_gini_pos = Gini_Slide(pos_avg.list$KO1,80,fill = T, na.rm = T )
+KO1_gini_pos = Convert_Circos_Coords(KO1_gini_pos)
+
+#Plot Circos
+#svg("../plots/circos/KO_gini_positive.svg")
+Init_Circos_Mito()
+circos.par("track.height" = 0.5)
+circos.track(ylim = c(0.05,0.8))
+circos.yaxis(at = c(0.2,0.4,0.6,0.8))
+circos.lines(x = KO1_gini_pos$Position, y = KO1_gini_pos$Gini, lwd = 2, col = "purple")
+dev.off()
+
+# ###NEGATIVE STRAND
+KO1_Gini_Neg = Gini_Slide(neg_avg.list$KO1,80,fill = T, na.rm = T )
+KO1_Gini_Neg = Convert_Neg_Coords(KO1_Gini_Neg)
+KO1_Gini_Neg = Convert_Circos_Coords(KO1_Gini_Neg)
+
+#Plot Circos
+#svg("../plots/arc_plots/Circos_Plots/KO_gini_negative.svg")
+Init_Circos_Mito()
+circos.par("track.height" = 0.5)
+circos.track(ylim = c(0.05,0.8))
+circos.yaxis(at = c(0.2,0.4,0.6,0.8))
+circos.lines(x = KO1_Gini_Neg$Position, y = KO1_Gini_Neg$Gini, lwd = 2, col = "purple")
+#dev.off()
+
+```
+#### D
+```{r}
+#for csvs:
+make_message_table = function(pos_avg.list,Message){
+  mKO1 = pos_avg.list$KO1 %>%
+    filter(Gene == Message)
+  mKO2 = pos_avg.list$KO2 %>%
+    filter(Gene == Message)
+  mKO1 = get_AC(mKO1)
+  mKO2 = get_AC(mKO2)
+  message_tibble = tibble(KO1 = mKO1$Mismatches...Deletions,
+                          KO2 = mKO2$Mismatches...Deletions,
+                          Base = mKO1$Base,
+                          Position = mKO1$Position)
+  return(message_tibble)
+}
+
+#ND1
+nd1_KO = make_message_table(pos_avg.list, "ND1")
+plot(nd1_KO$KO1,nd1_KO$KO2)
+write.csv(make_message_table(pos_avg.list,"ND1"),"../csv_out/correlations/KO_ND1.csv")
+#ND2
+nd2_KO = make_message_table(pos_avg.list, "ND2")
+plot(nd2_KO$KO1,nd2_KO$KO2)
+write.csv(make_message_table(pos_avg.list,"ND2"),"../csv_out/correlations/KO_ND2.csv")
+#ND3
+nd3_KO = make_message_table(pos_avg.list, "ND3")
+plot(nd3_KO$KO1,nd3_KO$KO2)
+write.csv(make_message_table(pos_avg.list,"ND3"),"../csv_out/correlations/KO_ND3.csv")
+#ND4
+nd4_KO = make_message_table(pos_avg.list, "ND4L/4")
+plot(nd4_KO$KO1,nd4_KO$KO2)
+write.csv(make_message_table(pos_avg.list,"ND4L/4"),"../csv_out/correlations/KO_ND4.csv")
+#ND5
+nd5_KO = make_message_table(pos_avg.list, "ND5")
+plot(nd5_KO$KO1,nd5_KO$KO2)
+write.csv(make_message_table(pos_avg.list,"ND5"),"../csv_out/correlations/KO_ND5.csv")
+#ND6
+nd6_KO = make_message_table(neg_avg.list, "ND6")
+plot(nd6_KO$KO1,nd6_KO$KO2)
+write.csv(make_message_table(neg_avg.list,"ND6"),"../csv_out/correlations/KO_ND6.csv")
+#COX1
+cox1_KO = make_message_table(pos_avg.list, "COX1")
+plot(cox1_KO$KO1,cox1_KO$KO2)
+write.csv(make_message_table(pos_avg.list,"COX1"),"../csv_out/correlations/KO_COX1.csv")
+#COX2
+cox2_KO = make_message_table(pos_avg.list, "COX2")
+plot(cox2_KO$KO1,cox2_KO$KO2)
+write.csv(make_message_table(pos_avg.list,"COX2"),"../csv_out/correlations/KO_COX2.csv")
+#COX3
+cox3_KO = make_message_table(pos_avg.list, "COX3")
+plot(cox3_KO$KO1,cox3_KO$KO2)
+write.csv(make_message_table(pos_avg.list,"COX3"),"../csv_out/correlations/KO_COX3.csv")
+#ATP68
+atp68_KO = make_message_table(pos_avg.list, "ATP68")
+plot(atp68_KO$KO1,atp68_KO$KO2)
+write.csv(make_message_table(pos_avg.list,"ATP68"),"../csv_out/correlations/KO_ATP68.csv")
+#CYTB
+cytb_KO = make_message_table(pos_avg.list, "CYTB")
+plot(cytb_KO$KO1,cytb_KO$KO2)
+write.csv(make_message_table(pos_avg.list,"CYTB"),"../csv_out/correlations/KO_CYTB.csv")
+#7S
+#7S
+KO1_7S = get_AC(read.popavg("../data/Reactivities/Message/KO/1p/KO1_negative_7S_RNA_1_172_popavg_reacts.txt"))
+KO2_7S = get_AC(read.popavg("../data/Reactivities/Message/KO/1p/KO2_negative_7S_RNA_1_172_popavg_reacts.txt"))
+
+S_csv = tibble(KO1 = KO1_7S$Mismatches...Deletions,
+               KO2 = KO2_7S$Mismatches...Deletions,
+               Base = KO1_7S$Base,
+               Position = KO1_7S$Position)
+plot(S_csv$KO1,S_csv$KO2)
+write.csv(S_csv,"../csv_out/correlations/KO/KO_7S.csv")
+
+```
+#### E
+WT vs KO
+```{r}
+make_message_table = function(pos_avg.list,Message){
+  mKO1 = pos_avg.list$KO1 %>%
+    filter(Gene == Message)
+  mWT1 = pos_avg.list$WT1 %>%
+    filter(Gene == Message)
+  mKO1 = get_AC(mKO1)
+  mWT1 = get_AC(mWT1)
+  message_tibble = tibble(KO1 = mKO1$Mismatches...Deletions,
+                          KO2 = mWT1$Mismatches...Deletions,
+                          Base = mKO1$Base,
+                          Position = mKO1$Position)
+  return(message_tibble)
+}
+
+#ND1
+nd1_compare = make_message_table(pos_avg.list, "ND1")
+plot(nd1_compare$KO1,nd1_compare$KO2)
+write.csv(make_message_table(pos_avg.list,"ND1"),"../csv_out/correlations/wt_v_ko_ND1.csv")
+#ND2
+nd2_compare = make_message_table(pos_avg.list, "ND2")
+plot(nd2_compare$KO1,nd2_compare$KO2)
+write.csv(make_message_table(pos_avg.list,"ND2"),"../csv_out/correlations/wt_v_ko_ND2.csv")
+#ND3
+nd3_compare = make_message_table(pos_avg.list, "ND3")
+plot(nd3_compare$KO1,nd3_compare$KO2)
+write.csv(make_message_table(pos_avg.list,"ND3"),"../csv_out/correlations/wt_v_ko_ND3.csv")
+#ND4
+nd4_compare = make_message_table(pos_avg.list, "ND4L/4")
+plot(nd4_compare$KO1,nd4_compare$KO2)
+write.csv(make_message_table(pos_avg.list,"ND4L/4"),"../csv_out/correlations/wt_v_ko_ND4.csv")
+#ND5
+nd5_compare = make_message_table(pos_avg.list, "ND5")
+plot(nd5_compare$KO1,nd5_compare$KO2)
+write.csv(make_message_table(pos_avg.list,"ND5"),"../csv_out/correlations/wt_v_ko_ND5.csv")
+#ND6
+nd6_compare = make_message_table(neg_avg.list, "ND6")
+plot(nd6_compare$KO1,nd6_compare$KO2)
+write.csv(make_message_table(neg_avg.list,"ND6"),"../csv_out/correlations/wt_v_ko_ND6.csv")
+#COX1
+cox1_compare = make_message_table(pos_avg.list, "COX1")
+plot(cox1_compare$KO1,cox1_compare$KO2)
+write.csv(make_message_table(pos_avg.list,"COX1"),"../csv_out/correlations/wt_v_ko_COX1.csv")
+#COX2
+cox2_compare = make_message_table(pos_avg.list, "COX2")
+plot(cox2_compare$KO1,cox2_compare$KO2)
+write.csv(make_message_table(pos_avg.list,"COX2"),"../csv_out/correlations/wt_v_ko_COX2.csv")
+#COX3
+cox3_compare = make_message_table(pos_avg.list, "COX3")
+plot(cox3_compare$KO1,cox3_compare$KO2)
+write.csv(make_message_table(pos_avg.list,"COX3"),"../csv_out/correlations/wt_v_ko_COX3.csv")
+#ATP68
+atp68_compare = make_message_table(pos_avg.list, "ATP68")
+plot(atp68_compare$KO1,atp68_compare$KO2)
+write.csv(make_message_table(pos_avg.list,"ATP68"),"../csv_out/correlations/wt_v_ko_ATP68.csv")
+#CYTB
+cytb_compare = make_message_table(pos_avg.list, "CYTB")
+plot(cytb_compare$KO1,cytb_compare$KO2)
+write.csv(make_message_table(pos_avg.list,"CYTB"),"../csv_out/correlations/wt_v_ko_CYTB.csv")
+#7S
+#7S
+KO1_7S = get_AC(read.popavg("../data/Reactivities/Message/KO/1p/KO1_negative_7S_RNA_1_172_popavg_reacts.txt"))
+KO2_7S = get_AC(read.popavg("../data/Reactivities/Message/KO/1p/KO2_negative_7S_RNA_1_172_popavg_reacts.txt"))
+
+S_csv = tibble(KO1 = KO1_7S$Mismatches...Deletions,
+               KO2 = KO2_7S$Mismatches...Deletions,
+               Base = KO1_7S$Base,
+               Position = KO1_7S$Position)
+plot(S_csv$KO1,S_csv$KO2)
+
+```
+
+## Figure S9
+#### A
+```{r message=FALSE, warning=FALSE}
+#Log2 Comparison
+log2_comparison = function(pos_avg.list,Message){
+  mKO1 = pos_avg.list$KO1 %>%
+    filter(Gene == Message)
+  mWT1 = pos_avg.list$WT1 %>%
+    filter(Gene == Message)
+  mKO1 = get_AC(mKO1)
+  mWT1 = get_AC(mWT1)
+  log2_comparison = log2(mKO1$Mismatches...Deletions/mWT1$Mismatches...Deletions)
+  message_tibble = tibble(log2react = log2_comparison,
+                          Base = mKO1$Base,
+                          Position = mKO1$Position)
+  return(message_tibble)
+}
+#ND1
+nd1_compare = log2_comparison(pos_avg.list, "ND1")
+nd1_compare
+plot(nd1_compare$Position,nd1_compare$log2react)
+write.csv(log2_comparison(pos_avg.list,"ND1"),"../csv_out/log2compare/wt_v_ko_ND1.csv")
+#ND2
+nd2_compare = log2_comparison(pos_avg.list, "ND2")
+plot(nd2_compare$Position,nd2_compare$log2react)
+write.csv(log2_comparison(pos_avg.list,"ND2"),"../csv_out/log2compare/log2_ND2.csv")
+#ND3
+nd3_compare = log2_comparison(pos_avg.list, "ND3")
+plot(nd3_compare$Position,nd3_compare$log2react)
+write.csv(log2_comparison(pos_avg.list,"ND3"),"../csv_out/log2compare/log2_ND3.csv")
+#ND4
+nd4_compare = log2_comparison(pos_avg.list, "ND4L/4")
+plot(nd4_compare$Position,nd4_compare$log2react)
+write.csv(log2_comparison(pos_avg.list,"ND4L/4"),"../csv_out/log2compare/log2_ND4.csv")
+#ND5
+nd5_compare = log2_comparison(pos_avg.list, "ND5")
+plot(nd5_compare$Position,nd5_compare$log2react)
+write.csv(log2_comparison(pos_avg.list,"ND5"),"../csv_out/log2compare/log2_ND5.csv")
+#ND6
+nd6_compare = log2_comparison(neg_avg.list, "ND6")
+plot(nd6_compare$Position,nd6_compare$log2react)
+write.csv(log2_comparison(neg_avg.list,"ND6"),"../csv_out/log2compare/log2_ND6.csv")
+#COX1
+cox1_compare = log2_comparison(pos_avg.list, "COX1")
+plot(cox1_compare$Position,cox1_compare$log2react)
+write.csv(log2_comparison(pos_avg.list,"COX1"),"../csv_out/log2compare/log2_COX1.csv")
+#COX2
+cox2_compare = log2_comparison(pos_avg.list, "COX2")
+plot(cox2_compare$Position,cox2_compare$log2react)
+write.csv(log2_comparison(pos_avg.list,"COX2"),"../csv_out/log2compare/log2_COX2.csv")
+#COX3
+cox3_compare = log2_comparison(pos_avg.list, "COX3")
+plot(cox3_compare$Position,cox3_compare$log2react)
+write.csv(log2_comparison(pos_avg.list,"COX3"),"../csv_out/log2compare/log2_COX3.csv")
+#ATP68
+atp68_compare = log2_comparison(pos_avg.list, "ATP68")
+plot(atp68_compare$Position,atp68_compare$log2react)
+write.csv(log2_comparison(pos_avg.list,"ATP68"),"../csv_out/log2compare/log2_ATP68.csv")
+#CYTB
+cytb_compare = log2_comparison(pos_avg.list, "CYTB")
+plot(cytb_compare$Position,cytb_compare$log2react)
+write.csv(log2_comparison(pos_avg.list,"CYTB"),"../csv_out/log2compare/log2_CYTB.csv")
+```
+#### B
+```{r message=FALSE, warning=FALSE}
+WT_files = c()
+KO_files = c()
+IVT_files = c()
+# List the CT files in each directory
+WT_files <- list.files(path = "../data/Structure/WT/Message_Structure", pattern = "*.ct", full.names = TRUE)
+KO_files <- list.files(path = "../data/Structure/KO/Message_Structure", pattern = "*.ct", full.names = TRUE)
+IVT_files <- list.files(path = "../data/Structure/InVitro", pattern = "*.ct", full.names = TRUE)
+#Ensure Sorted
+WT_files = sort(WT_files)
+KO_files = sort(KO_files)
+IVT_files = sort(IVT_files)
+WT_files = WT_files[-c(1:3)]
+WT_files = WT_files[-length(WT_files)]
+# Swap the first and last values of IVT_files
+IVT_files <- c(IVT_files[length(IVT_files)], IVT_files[-length(IVT_files)])
+# Initialize a dataframe to store the results
+results_df <- data.frame(message = character(), mFMI_WT_KO = numeric(), mFMI_WT_IVT = numeric(), mFMI_KO_IVT = numeric())
+results_df
+# For each filename in WT_files
+for (i in 1:length(WT_files)) {
+  # Extract the message name from the filename (modify this line as needed)
+  message <- parse_filename(WT_files[i])
+  message = message[3]
+  # Read the CT files from each directory
+  CT_file_WT <- Read.CT(WT_files[i])
+  CT_file_KO <- Read.CT(KO_files[i])
+  CT_file_IVT <- Read.CT(IVT_files[i])
+  
+  # Compute the mFMI for the CT files in the different directories with the same name
+  mFMI_WT_KO <- compute_mFMI(CT_file_WT, CT_file_KO)
+  mFMI_WT_IVT <- compute_mFMI(CT_file_WT, CT_file_IVT)
+  mFMI_KO_IVT <- compute_mFMI(CT_file_KO, CT_file_IVT)
+  
+  # Add the results to the dataframe
+  ####FMI == mFMI_*_*KO[1]
+  ####mFMI == mFMI_*_*KO[2]
+  mFMI_WT_KO
+  results_df <- rbind(results_df, data.frame(message = message, mFMI_WT_KO = mFMI_WT_KO[1], 
+                                             mFMI_WT_IVT = mFMI_WT_IVT[1], 
+                                             mFMI_KO_IVT = mFMI_KO_IVT[1]))
+}
+results_long <- results_df %>% 
+  pivot_longer(cols = starts_with("mFMI"), names_to = "Comparison", values_to = "mFMI")
+results_long
+# Create the grouped bar chart
+grouped_bar_chart <- ggplot(results_long, aes(x = message, y = mFMI, fill = Comparison)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(x = "Message", y = "FMI", title = "Grouped Bar Chart of FMI") +
+  theme_bw()
+# Display the plot
+print(grouped_bar_chart)
+write.csv(results_df,"../csv_out/log2compare/FMI.csv")
+```
+#### C
+```{r message=FALSE, warning=FALSE}
+# Function to count base pairs in a CT file
+count_basepairs <- function(file) {
+  CT = Read.CT(file)
+  count = sum(CT$paired != 0, na.rm = T)
+  ratio = count/length(CT$paired)
+  return(c(count,ratio))
+}
+# Function to parse filename
+parse_filename <- function(filename) {
+  # Remove directory and extension
+  name <- basename(filename)
+  name <- str_remove(name, ".ct")
+  
+  # Split on underscores
+  parts <- str_split(name, "_")[[1]]
+  
+  # Extract parts
+  condition <- parts[1]
+  orientation <- parts[2]
+  message <- parts[3]
+  sequence_range <- parts[4]
+  
+  return(c(condition, orientation, message, sequence_range))
+}
+#####WT######
+# Get the list of CT files for each condition
+WT_files <- list.files(path = "../data/Structure/WT/Message_Structure/", pattern = "*.ct", full.names = TRUE)
+# Count base pairs and parse filenames for each file
+WT_DF <- data.frame()
+for(file in WT_files) {
+  num_bp <- count_basepairs(file)
+  parsed_name <- parse_filename(file)
+  row <- c(Condition = parsed_name[1], Message = parsed_name[3], BasePairs = num_bp[1], Ratio =  num_bp[2])
+  WT_DF <- rbind(WT_DF, row)
+}
+colnames(WT_DF) = c("Treatment","Message","BP_Count","Ratio")
+WT_DF
+###KO###
+# Get the list of CT files for each condition
+KO_files <- list.files(path = "../data/Structure/KO/Message_Structure/", pattern = "*.ct", full.names = TRUE)
+# Count base pairs and parse filenames for each file
+KO_DF <- data.frame()
+for(file in KO_files) {
+  num_bp <- count_basepairs(file)
+  parsed_name <- parse_filename(file)
+  row <- c(Condition = parsed_name[1], Message = parsed_name[3], BasePairs = num_bp[1], Ratio =  num_bp[2])
+  KO_DF <- rbind(KO_DF, row)
+}
+colnames(KO_DF) = c("Treatment","Message","BP_Count","Ratio")
+KO_DF
+###InVitro###
+IVT_files = c()
+IVT_files <- list.files(path = "../data/Structure/InVitro/", pattern = "*.ct", full.names = TRUE)
+# Count base pairs and parse filenames for each file
+IVT_DF <- data.frame()
+for(file in IVT_files) {
+  num_bp <- count_basepairs(file)
+  parsed_name <- parse_filename(file)
+  row <- c(Condition = parsed_name[1], Message = parsed_name[2], BasePairs = num_bp[1], Ratio =  num_bp[2])
+  IVT_DF <- rbind(IVT_DF, row)
+}
+colnames(IVT_DF) = c("Treatment","Message","BP_Count","Ratio")
+KO_DF = KO_DF %>% distinct(Message, .keep_all = TRUE)
+WT_DF = WT_DF %>% distinct(Message, .keep_all = TRUE)
+WT_DF = WT_DF[-nrow(WT_DF), ]
+WT_DF$Treatment = "WT"
+KO_DF$Treatment = "KO"
+IVT_DF
+####Plotting
+Master_DF = rbind(WT_DF,KO_DF,IVT_DF)
+# Convert Treatment to a factor to force order of the bars in ggplot
+Master_DF$Treatment <- factor(Master_DF$Treatment, levels = c("WT", "KO", "InVitro"))
+Master_DF$Ratio = as.numeric(Master_DF$Ratio)
+Master_DF$BP_Count = as.numeric(Master_DF$BP_Count)
+
+write.csv(Master_DF,file = "../csv_out/log2compare/BasePairCounts.csv")
+# Create the plot
+ggplot(Master_DF, aes(x=Message, y=BP_Count, fill=Treatment)) + 
+  geom_bar(stat="identity", position="dodge") +
+  geom_point(position=position_dodge(width=0.9), size=2) +
+  #scale_y_discrete(breaks = seq(0, 1000, by = 50)) + # New line: Adjust the scale of y-axis
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x="Message", y="Ratio", fill="Treatment", title="Grouped bar chart of The ratio of Paired to Unpaired bases")
+```
+
+
