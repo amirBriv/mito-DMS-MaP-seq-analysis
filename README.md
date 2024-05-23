@@ -19,7 +19,7 @@ Code for the analysis of mitochondrial RNA secondary structures as resolved by D
   - Fig S5: b
   - Fig S8
   - Fig S9 
-- `functions.r`: contains helper functions for plotting mitoDMSmap-seq data generated with DREEM
+- `functions.R`: contains helper functions for plotting mitoDMSmap-seq data generated with DREEM
 #### data
 Contains raw data for generation of figures
 #### csv_out
